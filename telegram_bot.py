@@ -40,9 +40,33 @@ class TelegramBot:
             async def hi_handler(event):
                 await command_manager.process_command('hi', event, self)
 
+            @self.client.on(events.NewMessage(pattern='/content'))
+            async def content_handler(event):
+                await command_manager.process_command('content', event, self)
+
+            @self.client.on(events.NewMessage(pattern='/price'))
+            async def price_handler(event):
+                await command_manager.process_command('price', event, self)
+
+            @self.client.on(events.NewMessage(pattern='/event'))
+            async def event_handler(event):
+                await command_manager.process_command('event', event, self)
+
+            @self.client.on(events.NewMessage(pattern='/task'))
+            async def task_handler(event):
+                await command_manager.process_command('task', event, self)
+
+            @self.client.on(events.NewMessage(pattern='/news'))
+            async def news_handler(event):
+                await command_manager.process_command('news', event, self)
+
             @self.client.on(events.NewMessage(pattern='/PNTs'))
             async def pnts_handler(event):
                 await command_manager.process_command('PNTs', event, self)
+
+            @self.client.on(events.NewMessage(pattern='/account'))
+            async def account_handler(event):
+                await command_manager.process_command('account', event, self)
 
             # 注册消息处理器
             @self.client.on(events.NewMessage)

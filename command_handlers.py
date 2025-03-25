@@ -26,9 +26,15 @@ async def telegram_help(event, bot: TelegramBot):
     try:
         help_text = """
 Available commands:
-/hi - Welcome message
+/content - Show content list
+/hi - Say hello and onboarding page
+/price - Query price of top 10 in CoinMarketCap
+/event - Query community events info
+/task - Query community task info
+/news - Query news information
+/PNTs - Query PNTs balance and more info
+/account - Initiate a new AirAccount or get your AirAccount public info (private msg)
 /help - Show this help message
-/PNTs - Call the PNTs function
         """
         await event.reply(help_text)
         logger.info(f"Help command processed for user {event.sender_id}")
@@ -56,6 +62,66 @@ async def telegram_pnts(event, bot: TelegramBot):
         logger.info(f"PNTs command processed for user {event.sender_id}")
     except Exception as e:
         logger.error(f"Error processing PNTs command: {e}", exc_info=True)
+
+async def telegram_content(event, bot: TelegramBot):
+    """Handle /content command for Telegram"""
+    try:
+        sender = await event.get_sender()
+        sender_name = sender.first_name if sender else "User"
+        await event.reply(f"Hi {sender_name}, I got your function call: content")
+        logger.info(f"Content command processed for user {event.sender_id}")
+    except Exception as e:
+        logger.error(f"Error processing content command: {e}", exc_info=True)
+
+async def telegram_price(event, bot: TelegramBot):
+    """Handle /price command for Telegram"""
+    try:
+        sender = await event.get_sender()
+        sender_name = sender.first_name if sender else "User"
+        await event.reply(f"Hi {sender_name}, I got your function call: price")
+        logger.info(f"Price command processed for user {event.sender_id}")
+    except Exception as e:
+        logger.error(f"Error processing price command: {e}", exc_info=True)
+
+async def telegram_event(event, bot: TelegramBot):
+    """Handle /event command for Telegram"""
+    try:
+        sender = await event.get_sender()
+        sender_name = sender.first_name if sender else "User"
+        await event.reply(f"Hi {sender_name}, I got your function call: event")
+        logger.info(f"Event command processed for user {event.sender_id}")
+    except Exception as e:
+        logger.error(f"Error processing event command: {e}", exc_info=True)
+
+async def telegram_task(event, bot: TelegramBot):
+    """Handle /task command for Telegram"""
+    try:
+        sender = await event.get_sender()
+        sender_name = sender.first_name if sender else "User"
+        await event.reply(f"Hi {sender_name}, I got your function call: task")
+        logger.info(f"Task command processed for user {event.sender_id}")
+    except Exception as e:
+        logger.error(f"Error processing task command: {e}", exc_info=True)
+
+async def telegram_news(event, bot: TelegramBot):
+    """Handle /news command for Telegram"""
+    try:
+        sender = await event.get_sender()
+        sender_name = sender.first_name if sender else "User"
+        await event.reply(f"Hi {sender_name}, I got your function call: news")
+        logger.info(f"News command processed for user {event.sender_id}")
+    except Exception as e:
+        logger.error(f"Error processing news command: {e}", exc_info=True)
+
+async def telegram_account(event, bot: TelegramBot):
+    """Handle /account command for Telegram"""
+    try:
+        sender = await event.get_sender()
+        sender_name = sender.first_name if sender else "User"
+        await event.reply(f"Hi {sender_name}, I got your function call: account")
+        logger.info(f"Account command processed for user {event.sender_id}")
+    except Exception as e:
+        logger.error(f"Error processing account command: {e}", exc_info=True)
 
 async def telegram_message(event, bot: TelegramBot):
     """Handle regular messages for Telegram"""
@@ -131,6 +197,12 @@ def register_handlers():
         command_manager.register_command('start', telegram_start, BotType.TELEGRAM)
         command_manager.register_command('help', telegram_help, BotType.TELEGRAM)
         command_manager.register_command('hi', telegram_hi, BotType.TELEGRAM)
+        command_manager.register_command('content', telegram_content, BotType.TELEGRAM)
+        command_manager.register_command('price', telegram_price, BotType.TELEGRAM)
+        command_manager.register_command('event', telegram_event, BotType.TELEGRAM)
+        command_manager.register_command('task', telegram_task, BotType.TELEGRAM)
+        command_manager.register_command('news', telegram_news, BotType.TELEGRAM)
+        command_manager.register_command('account', telegram_account, BotType.TELEGRAM)
         command_manager.register_command('PNTs', telegram_pnts, BotType.TELEGRAM)
         command_manager.register_message_handler(telegram_message, BotType.TELEGRAM)
         
