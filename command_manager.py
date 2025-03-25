@@ -30,14 +30,38 @@ class CommandManager:
         self.message_handlers[bot_type] = handler
         logger.info(f"Registered message handler for {bot_type.value}")
     
+    def _get_bot_type(self, event) -> BotType:
+        """Determine the bot type from the event"""
+        try:
+            # 检查事件类型来确定机器人类型
+            if hasattr(event, 'client') and hasattr(event.client, 'me'):
+                return BotType.TELEGRAM
+            elif hasattr(event, 'api') and hasattr(event.api, 'me'):
+                return BotType.TWITTER
+            else:
+                logger.error("Could not determine bot type from event")
+                return None
+        except Exception as e:
+            logger.error(f"Error determining bot type: {e}", exc_info=True)
+            return None
+    
     async def process_command(self, command: str, event, bot):
         """Process a command"""
         try:
+            # 确定机器人类型
             bot_type = BotType.TELEGRAM if bot.__class__.__name__ == 'TelegramBot' else BotType.TWITTER
-            if bot_type in self.command_handlers and command in self.command_handlers[bot_type]:
-                await self.command_handlers[bot_type][command](event)
-            else:
-                logger.warning(f"No handler registered for command '{command}' in {bot_type.value}")
+            if not bot_type:
+                logger.error("Could not determine bot type")
+                return
+
+            # 检查命令是否存在
+            if command not in self.command_handlers[bot_type]:
+                logger.warning(f"Command '{command}' not found for bot type {bot_type}")
+                return
+
+            # 执行命令处理器
+            await self.command_handlers[bot_type][command](event, bot)
+            logger.info(f"Command '{command}' processed successfully")
         except Exception as e:
             logger.error(f"Error processing command '{command}': {e}", exc_info=True)
     

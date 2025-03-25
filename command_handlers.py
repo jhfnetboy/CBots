@@ -26,9 +26,8 @@ async def telegram_help(event, bot: TelegramBot):
     try:
         help_text = """
 Available commands:
-/start - Start the bot
+/hi - Welcome message
 /help - Show this help message
-/hi - Say hello
 /PNTs - Call the PNTs function
         """
         await event.reply(help_text)
@@ -39,7 +38,10 @@ Available commands:
 async def telegram_hi(event, bot: TelegramBot):
     """Handle /hi command for Telegram"""
     try:
-        await event.reply(f"Hi {event.sender.first_name}!")
+        # 获取发送者信息
+        sender = await event.get_sender()
+        sender_name = sender.first_name if sender else "User"
+        await event.reply(f"Welcome {sender_name}! 👋")
         logger.info(f"Hi command processed for user {event.sender_id}")
     except Exception as e:
         logger.error(f"Error processing hi command: {e}", exc_info=True)
@@ -47,7 +49,10 @@ async def telegram_hi(event, bot: TelegramBot):
 async def telegram_pnts(event, bot: TelegramBot):
     """Handle /PNTs command for Telegram"""
     try:
-        await event.reply(f"Hi {event.sender.first_name}! You called the PNTs function.")
+        # 获取发送者信息
+        sender = await event.get_sender()
+        sender_name = sender.first_name if sender else "User"
+        await event.reply(f"Hi {sender_name}, I got your function call: PNTs")
         logger.info(f"PNTs command processed for user {event.sender_id}")
     except Exception as e:
         logger.error(f"Error processing PNTs command: {e}", exc_info=True)
@@ -55,18 +60,16 @@ async def telegram_pnts(event, bot: TelegramBot):
 async def telegram_message(event, bot: TelegramBot):
     """Handle regular messages for Telegram"""
     try:
-        # 检查是否是回复消息
-        if event.reply_to:
-            # 获取被回复的消息
-            replied_msg = await event.get_reply_message()
-            if replied_msg and replied_msg.sender_id == (await bot.client.get_me()).id:
-                # 如果是回复机器人的消息
-                await event.reply(f"I received your message: {event.text} from {event.sender.first_name}")
-            else:
-                await event.reply("I received your message!")
-        else:
-            await event.reply("I received your message!")
-        logger.info(f"Message processed for user {event.sender_id}")
+        # 检查是否是@机器人的消息
+        if event.mentioned:
+            # 获取发送者信息
+            sender = await event.get_sender()
+            sender_name = sender.first_name if sender else "User"
+            
+            # 如果是@机器人的消息，回复用户
+            await event.reply(f"Hi {sender_name}, I got your message: {event.text}")
+        # 其他消息只记录，不回复
+        logger.info(f"Message received from user {event.sender_id}: {event.text}")
     except Exception as e:
         logger.error(f"Error processing message: {e}", exc_info=True)
 
