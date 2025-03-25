@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from bot import TelegramBot
-from twitter_bot import TwitterBot
-from channel_manager import ChannelManager
+from bot_manager import BotManager
 import asyncio
 import logging
 from config import WEB_SERVER_CONFIG
@@ -9,11 +7,7 @@ import os
 import threading
 import signal
 import sys
-from dotenv import load_dotenv
 from datetime import datetime
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -23,9 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-telegram_bot = None
-twitter_bot = None
-channel_manager = None
+bot_manager = None
 flask_thread = None
 loop = None
 
@@ -43,6 +35,7 @@ def twitter():
 async def get_channels():
     logger.info("Received request for channels")
     try:
+        channel_manager = bot_manager.get_channel_manager()
         logger.info(f"Channel manager status: initialized={channel_manager.is_initialized if channel_manager else False}")
         if not channel_manager:
             logger.error("Channel manager is None")
@@ -63,6 +56,7 @@ async def get_channels():
 @app.route('/api/send_message', methods=['POST'])
 async def send_message():
     try:
+        telegram_bot = bot_manager.get_telegram_bot()
         if not telegram_bot:
             return jsonify({
                 'status': 'error',
@@ -104,7 +98,7 @@ async def send_message():
             telegram_bot.send_message(
                 message,
                 group,
-                reply_to=int(topic_id)  # Add topic_id as reply_to parameter
+                reply_to=int(topic_id)
             ),
             loop
         )
@@ -127,72 +121,70 @@ async def send_message():
 @app.route('/api/twitter/send', methods=['POST'])
 def send_tweet():
     try:
+        logger.info("=== Starting Twitter Send Request ===")
+        twitter_bot = bot_manager.get_twitter_bot()
         if not twitter_bot:
-            return jsonify({'error': 'Twitter bot not initialized'}), 500
+            logger.error("Twitter bot not initialized")
+            logger.error("=== Twitter Send Request Failed ===")
+            return jsonify({
+                'status': 'error',
+                'message': 'Twitter bot not initialized. Please check your Twitter API credentials.'
+            }), 500
         
         data = request.get_json()
         message = data.get('message')
         schedule_time = data.get('schedule_time')
         
+        logger.info(f"Received request - Message: {message}, Schedule Time: {schedule_time}")
+        
         if not message:
-            return jsonify({'error': 'Message is required'}), 400
+            logger.error("No message provided in request")
+            logger.error("=== Twitter Send Request Failed ===")
+            return jsonify({
+                'status': 'error',
+                'message': 'Message is required'
+            }), 400
         
-        if schedule_time:
-            twitter_bot.schedule_tweet(message, schedule_time)
-            return jsonify({'message': 'Tweet scheduled successfully'})
-        else:
-            tweet_id = twitter_bot.send_tweet(message)
-            return jsonify({'message': f'Tweet sent successfully with ID: {tweet_id}'})
+        try:
+            if schedule_time:
+                logger.info(f"Scheduling tweet for: {schedule_time}")
+                twitter_bot.schedule_tweet(message, schedule_time)
+                logger.info("Tweet scheduled successfully")
+                logger.info("=== Twitter Send Request Complete ===")
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Tweet scheduled successfully'
+                })
+            else:
+                logger.info("Sending tweet immediately")
+                tweet_id = twitter_bot.send_tweet(message)
+                logger.info(f"Tweet sent successfully with ID: {tweet_id}")
+                logger.info("=== Twitter Send Request Complete ===")
+                return jsonify({
+                    'status': 'success',
+                    'message': f'Tweet sent successfully with ID: {tweet_id}'
+                })
+        except Exception as e:
+            logger.error(f"Error sending tweet: {e}", exc_info=True)
+            logger.error("=== Twitter Send Request Failed ===")
+            return jsonify({
+                'status': 'error',
+                'message': f'Failed to send tweet: {str(e)}'
+            }), 500
+            
     except Exception as e:
-        logger.error(f"Error sending tweet: {e}")
-        return jsonify({'error': str(e)}), 500
-
-async def start_bots():
-    global telegram_bot, twitter_bot, channel_manager
-    
-    try:
-        # Start Telegram bot
-        logger.info("Starting Telegram bot...")
-        telegram_bot = TelegramBot()
-        await telegram_bot.start()
-        logger.info("Telegram bot started successfully")
-        
-        # Initialize channel manager
-        logger.info("Initializing channel manager...")
-        channel_manager = ChannelManager(telegram_bot)
-        logger.info("Channel manager instance created")
-        
-        success = await channel_manager.initialize()
-        if success:
-            logger.info("Channel manager initialized successfully")
-            # Log the channels that were loaded
-            channels = channel_manager.get_channels()
-            logger.info(f"Loaded channels: {channels}")
-        else:
-            logger.error("Failed to initialize channel manager")
-            raise Exception("Failed to initialize channel manager")
-        
-        # Start Twitter bot
-        logger.info("Starting Twitter bot...")
-        twitter_bot = TwitterBot()
-        twitter_bot.start_stream()
-        logger.info("Twitter bot started successfully")
-        
-        logger.info("All bots started successfully")
-        
-        # Keep the bot running
-        await telegram_bot.client.run_until_disconnected()
-        
-    except Exception as e:
-        logger.error(f"Error starting bots: {e}", exc_info=True)
-        raise
+        logger.error(f"Error in send_tweet route: {e}", exc_info=True)
+        logger.error("=== Twitter Send Request Failed ===")
+        return jsonify({
+            'status': 'error',
+            'message': f'Internal server error: {str(e)}'
+        }), 500
 
 def run_flask():
     logger.info(f"Starting Flask server on {WEB_SERVER_CONFIG['host']}:{WEB_SERVER_CONFIG['port']}")
     try:
-        # Use use_reloader=False to avoid signal handling issues
         app.run(
-            host='0.0.0.0',  # Allow external connections
+            host='0.0.0.0',
             port=WEB_SERVER_CONFIG['port'],
             debug=WEB_SERVER_CONFIG['debug'],
             use_reloader=False
@@ -204,8 +196,8 @@ def run_flask():
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
     logger.info("Received shutdown signal. Cleaning up...")
-    if telegram_bot:
-        asyncio.run_coroutine_threadsafe(telegram_bot.stop(), loop)
+    if bot_manager and bot_manager.get_telegram_bot():
+        asyncio.run_coroutine_threadsafe(bot_manager.get_telegram_bot().stop(), loop)
     if loop:
         loop.stop()
     sys.exit(0)
@@ -220,15 +212,20 @@ if __name__ == '__main__':
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-        # Start Flask in a separate thread first
+        # Initialize bot manager
+        logger.info("=== Starting Bot Manager ===")
+        bot_manager = BotManager()
+        loop.run_until_complete(bot_manager.initialize())
+        
+        # Start Flask in a separate thread
         logger.info("Starting Flask server...")
         flask_thread = threading.Thread(target=run_flask)
         flask_thread.daemon = True
         flask_thread.start()
         
-        # Start bots after Flask is running
-        logger.info("Starting Telegram bot...")
-        loop.run_until_complete(start_bots())
+        # Run the bots
+        logger.info("Starting bot main loop...")
+        loop.run_until_complete(bot_manager.run())
         
         # Keep the main thread running
         try:

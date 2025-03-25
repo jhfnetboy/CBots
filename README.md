@@ -134,3 +134,20 @@ Bearer Token
 然后在你的 .env 文件中添加这些配置：
 
 Found group: AAStar Community (ID: 1866085490)
+
+## 代码结构
+文件关系：
+run.py (入口文件)
+  ├── app.py (Flask应用)
+  │     └── bot_manager.py (机器人管理器)
+  │           ├── bot.py (Telegram机器人)
+  │           └── twitter_bot.py (Twitter机器人)
+  └── command_manager.py (命令管理器)
+
+功能逻辑：
+run.py: 启动应用，初始化机器人管理器和Flask服务器
+app.py: Flask应用，处理Web请求
+bot_manager.py: 管理所有机器人的生命周期
+bot.py: Telegram机器人的具体实现
+twitter_bot.py: Twitter机器人的具体实现
+command_manager.py: 统一管理所有机器人的命令和消息处理

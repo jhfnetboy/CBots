@@ -29,6 +29,11 @@
         .nav a:hover {
             background-color: #555;
         }
+        .page-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -38,7 +43,7 @@
     </div>
 
     <div class="container mt-5">
-        <h1>Telegram Bot Control Panel</h1>
+        <h1 class="page-title">Telegram Bot Control Panel</h1>
         
         <div class="row mt-4">
             <div class="col-md-8 offset-md-2">
@@ -105,23 +110,21 @@
                     },
                     body: JSON.stringify({
                         channel_id: channelId,
-                        message: message,
-                        scheduled_time: scheduledTime || null
+                        message,
+                        scheduled_time: scheduledTime
                     })
                 });
                 
-                const data = await response.json();
+                const result = await response.json();
                 
-                if (data.status === 'success') {
-                    alert('Message sent successfully');
+                if (result.status === 'success') {
+                    alert('Message sent successfully!');
                     document.getElementById('message').value = '';
-                    document.getElementById('scheduledTime').value = '';
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('Error: ' + result.message);
                 }
             } catch (error) {
-                console.error('Error sending message:', error);
-                alert('Error sending message');
+                alert('Error sending message: ' + error);
             }
         };
     </script>

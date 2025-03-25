@@ -114,6 +114,7 @@
         async function sendTweet() {
             const message = document.getElementById('message').value;
             const scheduleTime = document.getElementById('scheduleTime').value;
+            const statusDiv = document.getElementById('status');
             
             if (!message) {
                 showStatus('Please enter a message', 'error');
@@ -121,6 +122,9 @@
             }
             
             try {
+                statusDiv.textContent = 'Sending tweet...';
+                statusDiv.className = 'info';
+                
                 const response = await fetch('/api/twitter/send', {
                     method: 'POST',
                     headers: {
@@ -134,15 +138,16 @@
                 
                 const data = await response.json();
                 
-                if (data.error) {
-                    showStatus(data.error, 'error');
+                if (data.status === 'error') {
+                    showStatus(data.message, 'error');
                 } else {
                     showStatus(data.message, 'success');
                     document.getElementById('message').value = '';
+                    document.getElementById('scheduleTime').value = '';
                 }
             } catch (error) {
                 console.error('Error sending tweet:', error);
-                showStatus('Error sending tweet', 'error');
+                showStatus('Error sending tweet: ' + error.message, 'error');
             }
         }
 
