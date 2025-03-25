@@ -1,6 +1,8 @@
 # CBots
 a bot for community operation and social media.
 
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503251924792.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503251924884.png)
 ## Telegram bot
 features:
 - Create contents by AI and your contents feeding.
@@ -151,3 +153,14 @@ bot_manager.py: 管理所有机器人的生命周期
 bot.py: Telegram机器人的具体实现
 twitter_bot.py: Twitter机器人的具体实现
 command_manager.py: 统一管理所有机器人的命令和消息处理
+
+### bot消息处理预期
+对于telegram群组内的消息
+首先所有的消息都要接受和记录：username，发送时间，发送内容
+后面可以增加filter，包含特定内容的，给予响应和回复
+
+对于直接at bot的，要有回复：Hi username，I receive your message：原消息
+
+对于命令，要有专门对应每个命令的函数，目前除了hi和help，其他统一回复：Hi usernmae，you invoke funtion：命令名字
+
+这个之前已经实现了，为何修改文件锁定反而都丢失了，请恢复

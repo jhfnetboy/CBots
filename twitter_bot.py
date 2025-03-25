@@ -32,14 +32,17 @@ class TwitterBot:
                 if not self.access_token_secret: missing.append('TWITTER_ACCESS_TOKEN_SECRET')
                 raise ValueError(f"Missing required Twitter API credentials: {', '.join(missing)}")
             
-            # 初始化Twitter客户端
-            auth = tweepy.OAuthHandler(self.api_key, self.api_secret)
-            auth.set_access_token(self.access_token, self.access_token_secret)
-            self.client = tweepy.API(auth)
+            # 初始化Twitter客户端 (v2)
+            self.client = tweepy.Client(
+                consumer_key=self.api_key,
+                consumer_secret=self.api_secret,
+                access_token=self.access_token,
+                access_token_secret=self.access_token_secret
+            )
             
             # 测试API连接
-            self.client.verify_credentials()
-            logger.info("Twitter API credentials verified successfully")
+            me = self.client.get_me()
+            logger.info(f"Twitter API credentials verified successfully. Connected as: {me.data.username}")
             
             # 注册命令处理器
             command_manager.register_command('start', self.handle_start, BotType.TWITTER)
@@ -92,14 +95,28 @@ class TwitterBot:
         except Exception as e:
             logger.error(f"Error handling message: {e}", exc_info=True)
 
-    async def send_tweet(self, message: str):
-        """Send a tweet"""
+    async def send_tweet(self, message: str) -> str:
+        """Send a tweet and return the tweet URL"""
         try:
             if not self.client:
+                logger.error("Twitter client not initialized")
                 raise Exception("Twitter client not initialized")
+                
+            logger.info(f"Attempting to send tweet: {message}")
             
-            self.client.update_status(message)
-            logger.info("Tweet sent successfully")
+            # 使用 v2 API 发送推文
+            response = self.client.create_tweet(text=message)
+            tweet_id = response.data['id']
+            
+            # 获取用户信息以构建推文URL
+            me = self.client.get_me()
+            username = me.data.username
+            
+            # 构建推文URL
+            tweet_url = f"https://twitter.com/{username}/status/{tweet_id}"
+            logger.info(f"Tweet sent successfully. URL: {tweet_url}")
+            return tweet_url
+            
         except Exception as e:
             logger.error(f"Error sending tweet: {e}", exc_info=True)
             raise 

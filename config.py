@@ -65,15 +65,15 @@ TWITTER_BEARER_TOKEN = os.getenv('TWITTER_BEARER_TOKEN')
 WEB_SERVER_CONFIG = {
     'host': '0.0.0.0',
     'port': 8872,
-    'debug': False
+    'debug': True
 }
 
 # Telegram API Configuration
 CONFIG = {
     'telegram': {
-        'api_id': 'YOUR_API_ID',  # Replace with your API ID
-        'api_hash': 'YOUR_API_HASH',  # Replace with your API Hash
-        'bot_token': 'YOUR_BOT_TOKEN',  # Replace with your Bot Token
-        'target_group': 'YOUR_TARGET_GROUP',  # Replace with your target group username or ID
+        'api_id': API_ID,
+        'api_hash': API_HASH,
+        'bot_token': BOT_TOKEN,
+        'target_group': TARGET_GROUP,
     }
 } 

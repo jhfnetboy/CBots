@@ -93,7 +93,7 @@
 </head>
 <body>
     <div class="nav">
-        <a href="/">Telegram Bot</a>
+        <a href="/telegram">Telegram Bot</a>
         <a href="/twitter">Twitter Bot</a>
     </div>
     <div class="container">
@@ -131,19 +131,19 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        message: message,
-                        schedule_time: scheduleTime || null
+                        tweet: message
                     })
                 });
                 
                 const data = await response.json();
                 
-                if (data.status === 'error') {
-                    showStatus(data.message, 'error');
-                } else {
-                    showStatus(data.message, 'success');
+                if (response.ok) {
+                    const tweetUrl = data.tweet_url;
+                    showStatus(`Tweet sent successfully! <a href="${tweetUrl}" target="_blank">View Tweet</a>`, 'success');
                     document.getElementById('message').value = '';
                     document.getElementById('scheduleTime').value = '';
+                } else {
+                    showStatus(data.error || 'Error sending tweet', 'error');
                 }
             } catch (error) {
                 console.error('Error sending tweet:', error);
@@ -153,7 +153,7 @@
 
         function showStatus(message, type) {
             const status = document.getElementById('status');
-            status.textContent = message;
+            status.innerHTML = message;
             status.className = type;
         }
     </script>

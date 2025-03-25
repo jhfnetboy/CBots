@@ -24,6 +24,45 @@ class TelegramBot:
         self.last_verification_time = None
         logger.info("TelegramBot initialized")
 
+    async def start(self):
+        """Start the Telegram bot"""
+        try:
+            logger.info("Starting Telegram bot...")
+            if not self.api_id or not self.api_hash or not self.bot_token:
+                raise ValueError("Missing required environment variables: TELEGRAM_API_ID, TELEGRAM_API_HASH, or TELEGRAM_BOT_TOKEN")
+                
+            # 使用固定的会话文件名，避免多进程问题
+            session_file = "telegram_bot_session"
+            self.client = TelegramClient(session_file, self.api_id, self.api_hash)
+            
+            # 启动客户端
+            await self.client.start(bot_token=self.bot_token)
+            
+            # 注册命令处理器
+            command_manager.register_command('start', self.handle_start, BotType.TELEGRAM)
+            command_manager.register_command('help', self.handle_help, BotType.TELEGRAM)
+            command_manager.register_command('hi', self.handle_hi, BotType.TELEGRAM)
+            command_manager.register_command('content', self.handle_content, BotType.TELEGRAM)
+            command_manager.register_command('price', self.handle_price, BotType.TELEGRAM)
+            command_manager.register_command('event', self.handle_event, BotType.TELEGRAM)
+            command_manager.register_command('task', self.handle_task, BotType.TELEGRAM)
+            command_manager.register_command('news', self.handle_news, BotType.TELEGRAM)
+            command_manager.register_command('PNTs', self.handle_pnts, BotType.TELEGRAM)
+            command_manager.register_command('account', self.handle_account, BotType.TELEGRAM)
+            
+            # 注册消息处理器
+            command_manager.register_message_handler(self.handle_message, BotType.TELEGRAM)
+            
+            # 设置事件处理器
+            self.setup_handlers()
+            
+            logger.info("Telegram bot started successfully")
+        except Exception as e:
+            logger.error(f"Error starting Telegram bot: {e}", exc_info=True)
+            if self.client:
+                await self.client.disconnect()
+            raise
+
     def setup_handlers(self):
         """Set up event handlers"""
         try:
@@ -89,20 +128,124 @@ class TelegramBot:
             logger.error(f"Error setting up event handlers: {e}", exc_info=True)
             raise
 
-    async def start(self):
-        """Start the Telegram bot"""
+    # 命令处理器
+    async def handle_start(self, event):
+        """Handle /start command"""
         try:
-            logger.info("Starting Telegram bot...")
-            self.client = TelegramClient('bot_session', self.api_id, self.api_hash)
-            await self.client.start(bot_token=self.bot_token)
-            
-            # 设置事件处理器
-            self.setup_handlers()
-            
-            logger.info("Telegram bot started successfully")
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, welcome to the bot!")
         except Exception as e:
-            logger.error(f"Error starting Telegram bot: {e}", exc_info=True)
-            raise
+            logger.error(f"Error in handle_start: {e}", exc_info=True)
+
+    async def handle_help(self, event):
+        """Handle /help command"""
+        try:
+            help_text = """
+Available commands:
+/start - Start the bot
+/help - Show this help message
+/hi - Say hello
+/content - Content management
+/price - Price information
+/event - Event management
+/task - Task management
+/news - News updates
+/PNTs - PNTs information
+/account - Account management
+            """
+            await event.reply(help_text)
+        except Exception as e:
+            logger.error(f"Error in handle_help: {e}", exc_info=True)
+
+    async def handle_hi(self, event):
+        """Handle /hi command"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, nice to meet you!")
+        except Exception as e:
+            logger.error(f"Error in handle_hi: {e}", exc_info=True)
+
+    async def handle_content(self, event):
+        """Handle /content command"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, you invoked function: content")
+        except Exception as e:
+            logger.error(f"Error in handle_content: {e}", exc_info=True)
+
+    async def handle_price(self, event):
+        """Handle /price command"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, you invoked function: price")
+        except Exception as e:
+            logger.error(f"Error in handle_price: {e}", exc_info=True)
+
+    async def handle_event(self, event):
+        """Handle /event command"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, you invoked function: event")
+        except Exception as e:
+            logger.error(f"Error in handle_event: {e}", exc_info=True)
+
+    async def handle_task(self, event):
+        """Handle /task command"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, you invoked function: task")
+        except Exception as e:
+            logger.error(f"Error in handle_task: {e}", exc_info=True)
+
+    async def handle_news(self, event):
+        """Handle /news command"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, you invoked function: news")
+        except Exception as e:
+            logger.error(f"Error in handle_news: {e}", exc_info=True)
+
+    async def handle_pnts(self, event):
+        """Handle /PNTs command"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, you invoked function: PNTs")
+        except Exception as e:
+            logger.error(f"Error in handle_pnts: {e}", exc_info=True)
+
+    async def handle_account(self, event):
+        """Handle /account command"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            await event.reply(f"Hi {username}, you invoked function: account")
+        except Exception as e:
+            logger.error(f"Error in handle_account: {e}", exc_info=True)
+
+    # 消息处理器
+    async def handle_message(self, event):
+        """Handle regular messages"""
+        try:
+            user = await event.get_sender()
+            username = user.first_name if user else "User"
+            message = event.message.message
+            
+            # 记录消息
+            logger.info(f"Received message from {username}: {message}")
+            
+            # 如果是直接@机器人
+            if event.message.mentioned:
+                await event.reply(f"Hi {username}, I receive your message: {message}")
+        except Exception as e:
+            logger.error(f"Error in handle_message: {e}", exc_info=True)
 
     async def stop(self):
         """Stop the Telegram bot"""
@@ -114,10 +257,13 @@ class TelegramBot:
             logger.error(f"Error stopping Telegram bot: {e}", exc_info=True)
             raise
 
-    async def send_message(self, chat_id: str, message: str):
+    async def send_message(self, message: str, chat_id: str, reply_to: int = None):
         """Send a message to a specific chat"""
         try:
-            await self.client.send_message(chat_id, message)
+            if reply_to:
+                await self.client.send_message(chat_id, message, reply_to=reply_to)
+            else:
+                await self.client.send_message(chat_id, message)
             logger.info(f"Message sent successfully to chat {chat_id}")
         except Exception as e:
             logger.error(f"Error sending message: {e}", exc_info=True)
@@ -146,7 +292,7 @@ class TelegramBot:
         try:
             verification_text = await self.generate_verification_text()
             if verification_text and self.target_group:
-                await self.send_message(self.target_group, verification_text)
+                await self.send_message(verification_text, self.target_group)
                 logger.info("Daily verification text sent successfully")
         except Exception as e:
             logger.error(f"Error sending daily verification: {e}", exc_info=True)
