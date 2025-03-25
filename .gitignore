@@ -5,7 +5,11 @@ __pycache__/
 .env
 session_name.*
 session*.*
+*session*.*
+tmp/*
+tmp/*.*
 
+.telethon_sessions/*
 # C extensions
 *.so
 

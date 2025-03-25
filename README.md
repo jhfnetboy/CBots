@@ -49,6 +49,35 @@ Bot会自动响应 /help 和 /content 命令
 确保填写的频道和群组用户名是正确的
 定时发送功能目前只支持每天固定时间发送，如果需要更复杂的定时功能，可以进一步扩展
 
+### 0.11功能变更
+1. 请在页面增加一个列出所有channel的功能，显示后选择某个channel，发送消息，可以设置时间发送
+2. 请新增不同command（例如/help，/queryPNTS ，/hi等，配对不同的响应函数，函数根据发送内容，掉用内部函数或者外部api，完成内容加工后回复，不同command可以在env内配置，command1=queryPNTS，默认函数名就是command名，这样可以随时新增明亮和响应内容处理机制
+
+### 0.12功能变更
+新user进群会禁言4小时，和bot私聊每日密码才解禁
+优化自动获取群的所有channel
+
+### 0.20功能
+新增twitter 网页（定时）发送功能
+新增at twitter账号自动回复功能（固定内容）
+
+已实现：
+Web界面功能：
+访问 http://localhost:8872 可以看到完整的控制面板
+显示可用频道列表
+可以选择频道并发送消息
+支持定时发送
+动态命令系统：
+所有命令都在 config.py 中配置
+每个命令都有对应的处理函数
+可以轻松添加新命令
+帮助消息自动更新
+新增的命令：
+/help - 显示帮助信息
+/content - 显示内容列表
+/queryPNTS - 查询 PNTS 信息（待实现具体逻辑）
+/hi - 打招呼
+
 ### 如何初始化配置
 
 #### 获取 API ID 和 API Hash：
@@ -92,4 +121,16 @@ bot 需要有发送消息的权限
 需要我详细解释某个部分吗？或者需要帮助创建 bot？
 
 ## Twitter bot
-TODO
+获取 Twitter API 配置，你需要：
+访问 Twitter 开发者平台：https://developer.twitter.com/
+创建一个开发者账号（如果还没有的话）
+创建一个项目和应用
+获取以下凭证：
+API Key (Consumer Key)
+API Secret (Consumer Secret)
+Access Token
+Access Token Secret
+Bearer Token
+然后在你的 .env 文件中添加这些配置：
+
+Found group: AAStar Community (ID: 1866085490)

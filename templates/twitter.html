@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter Bot Control Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .nav {
+            background-color: #333;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+            min-width: 120px;
+            text-align: center;
+        }
+        .nav a:hover {
+            background-color: #555;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        textarea, input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #1DA1F2;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1991db;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/">Telegram Bot</a>
+        <a href="/twitter">Twitter Bot</a>
+    </div>
+    <div class="container">
+        <h1>Twitter Bot Control Panel</h1>
+        <div class="form-group">
+            <label for="message">Tweet Message:</label>
+            <textarea id="message" rows="4" required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="scheduleTime">Schedule Time (optional):</label>
+            <input type="datetime-local" id="scheduleTime">
+        </div>
+        <button onclick="sendTweet()">Send Tweet</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function sendTweet() {
+            const message = document.getElementById('message').value;
+            const scheduleTime = document.getElementById('scheduleTime').value;
+            
+            if (!message) {
+                showStatus('Please enter a message', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/twitter/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        schedule_time: scheduleTime || null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    showStatus(data.error, 'error');
+                } else {
+                    showStatus(data.message, 'success');
+                    document.getElementById('message').value = '';
+                }
+            } catch (error) {
+                console.error('Error sending tweet:', error);
+                showStatus('Error sending tweet', 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
+        }
+    </script>
+</body>
+</html> 
