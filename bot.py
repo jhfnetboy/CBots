@@ -253,28 +253,24 @@ class TelegramBot:
             logger.error(f"Error stopping bot: {e}")
             raise
 
-    async def send_message(self, message, target=None):
-        """Send message to specified target"""
+    async def send_message(self, message, target, reply_to=None):
+        """Send message to a specific chat"""
         try:
-            if target:
-                logger.info(f"Sending message to {target}: {message}")
-                if isinstance(target, str):
-                    # If target is a username, get the entity first
-                    entity = await self.client.get_entity(target)
-                    await self.client.send_message(entity, message)
-                else:
-                    await self.client.send_message(target, message)
-                logger.info(f"Message sent successfully to {target}")
-            else:
-                logger.info(f"Sending message to default channel {self.TARGET_CHANNEL}: {message}")
-                if self.TARGET_CHANNEL:
-                    entity = await self.client.get_entity(self.TARGET_CHANNEL)
-                    await self.client.send_message(entity, message)
-                    logger.info(f"Message sent successfully to {self.TARGET_CHANNEL}")
-                else:
-                    logger.error("No target channel specified")
+            # Get the chat entity
+            chat = await self.client.get_entity(target)
+            
+            # Send message with optional reply_to parameter
+            await self.client.send_message(
+                chat,
+                message,
+                reply_to=reply_to
+            )
+            
+            logger.info(f"Message sent successfully to {target}")
+            return True
+            
         except Exception as e:
-            logger.error(f"Error sending message: {e}")
+            logger.error(f"Error sending message: {e}", exc_info=True)
             raise
 
     async def get_available_channels(self):

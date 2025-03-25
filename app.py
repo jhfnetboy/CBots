@@ -101,7 +101,11 @@ async def send_message():
         
         # Create a future for the send_message operation
         future = asyncio.run_coroutine_threadsafe(
-            telegram_bot.send_message(message, group),
+            telegram_bot.send_message(
+                message,
+                group,
+                reply_to=int(topic_id)  # Add topic_id as reply_to parameter
+            ),
             loop
         )
         

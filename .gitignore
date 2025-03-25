@@ -9,6 +9,8 @@ session*.*
 tmp/*
 tmp/*.*
 
+bot_session.session
+
 .telethon_sessions/*
 # C extensions
 *.so
