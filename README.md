@@ -200,6 +200,9 @@ uv python install 3.12
 uv venv --python 3.12
 source .venv/bin/activate
 
+# 安装依赖
+pip install -r requirements.txt
+
 # 1. 安装 Netlify CLI
 npm install -g netlify-cli
 
@@ -212,8 +215,7 @@ netlify init
 # 4. 部署
 netlify deploy --prod
 
-# 安装依赖
-pip install -r requirements.txt
+
 
 部署
 
