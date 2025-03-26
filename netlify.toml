@@ -1,10 +1,7 @@
 [build]
-  command = "pip install -r requirements.txt && bash netlify_deploy.sh"
+  command = "python -m pip install --upgrade pip && pip install -r requirements.txt && bash netlify_deploy.sh"
   publish = "public"
   functions = "netlify/functions-build"
-
-[build.environment]
-  PYTHON_VERSION = "3.11"
 
 [[redirects]]
   from = "/api/*"
