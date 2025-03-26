@@ -15,8 +15,26 @@ exports.handler = async function(event, context) {
   if (event.httpMethod === 'POST') {
     try {
       const body = JSON.parse(event.body);
-      // 这里添加你的消息处理逻辑
       
+      // 验证请求体
+      if (!body.message) {
+        return {
+          statusCode: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({
+            status: 'error',
+            message: 'Message is required'
+          })
+        };
+      }
+      
+      // 这里添加你的消息处理逻辑
+      // 示例：返回成功响应
       return {
         statusCode: 200,
         headers: {
