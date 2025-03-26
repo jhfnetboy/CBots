@@ -1,5 +1,29 @@
 # CBots
 a bot for community operation and social media.
+COS72系统下的bot 模块。
+## V0.22 release
+### Features
+这是一个Python开发的机器人，目标是作为社区运营的Social media bot,提升运营效率。
+开源免费，目前包括：
+Telegram bot：
+1.Anti广告机器人
+  这也是开发初衷，TMD丧心病狂的广告机器人，自动加群狂发广告。
+  每天机器人会发送密码到群内，真人加入后可以看到密码，然后发每日密码（每天群内发消息更新）私聊到机器人来解禁，就可以发言了。
+  至少上来就发几十条垃圾消息的机器人是不会阅读和私聊的，未来再说。
+2.网页发消息
+  这个bot提供了一个web界面，可以发送消息到指定的Telegram频道或群组。
+  目前测试版，就简单的发消息，定时功能还没做完。
+Twitter bot：
+1.自动回复
+  当有人twitter上@你的账号时，会回复一条预定义的消息。这个功能在尝试集成AI来自动智能回复，还无法使用
+2.自动发消息
+  每天定时发消息到指定的twitter账号，目前手动发可以，定时发还在测试。
+
+
+### 安装
+群添加https://t.me/AAStarMushroomBot
+授予管理员权限
+测试：私聊看是否有回复，群内at看是否有回复，群内/help /hi /PNTs看是否有回复
 
 ![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503251924792.png)
 ![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503251924884.png)
@@ -164,3 +188,33 @@ command_manager.py: 统一管理所有机器人的命令和消息处理
 对于命令，要有专门对应每个命令的函数，目前除了hi和help，其他统一回复：Hi usernmae，you invoke funtion：命令名字
 
 这个之前已经实现了，为何修改文件锁定反而都丢失了，请恢复
+
+## 部署
+准备
+npm install -g vercel
+vercel login
+
+部署
+vercel
+Vercel项目设置中添加环境变量：
+BOT_TOKEN: 你的Telegram bot token
+PORT: 8787 (Vercel推荐的端口)
+
+代码示例： 在bot.py中，你需要使用webhook模式，而不是polling模式
+
+部署后：
+Vercel会自动处理Python环境的设置
+你的bot会通过webhook接收Telegram消息
+确保在Telegram BotFather中设置正确的webhook URL
+
+常见问题：
+确保所有依赖都正确列在requirements.txt中
+不要将敏感信息硬编码在代码中
+使用环境变量来配置可变参数
+确保bot token在Vercel的环境变量中正确设置
+
+这个部署方案有几个优点：
+免费部署
+自动缩放
+全球CDN支持
+自动SSL证书管理
