@@ -8,7 +8,8 @@ session*.*
 *session*.*
 tmp/*
 tmp/*.*
-
+.netlify
+.netlify/*
 bot_session.session
 
 .telethon_sessions/*
