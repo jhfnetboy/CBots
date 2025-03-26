@@ -51,6 +51,10 @@ features:
     uv venv --python 3.12
     source .venv/bin/activate
 
+    python3 -m venv path/to/venv
+source path/to/venv/bin/activate
+python3 -m pip install xyz
+
     pip3 install telethon
 
     python app.py
@@ -190,20 +194,48 @@ command_manager.py: 统一管理所有机器人的命令和消息处理
 这个之前已经实现了，为何修改文件锁定反而都丢失了，请恢复
 
 ## 部署
-准备
-npm install -g vercel
-vercel login
+
+# 创建 Python 3.12 虚拟环境
+uv python install 3.12
+uv venv --python 3.12
+source .venv/bin/activate
+
+# 1. 安装 Netlify CLI
+npm install -g netlify-cli
+
+# 2. 登录 Netlify
+netlify login
+
+# 3. 初始化项目
+netlify init
+
+# 4. 部署
+netlify deploy --prod
+
+# 安装依赖
+pip install -r requirements.txt
 
 部署
-vercel
-Vercel项目设置中添加环境变量：
-BOT_TOKEN: 你的Telegram bot token
-PORT: 8787 (Vercel推荐的端口)
 
-代码示例： 在bot.py中，你需要使用webhook模式，而不是polling模式
+在 Netlify 仪表板中设置环境变量：
+转到 Site settings > Build & deploy > Environment
+添加以下环境变量：
+# Telegram 配置
+TELEGRAM_API_ID=你的API_ID
+TELEGRAM_API_HASH=你的API_HASH
+TELEGRAM_BOT_TOKEN=你的BOT_TOKEN
+TELEGRAM_CHANNEL=@你的频道名
+TELEGRAM_GROUP=@你的群组名
+
+# Twitter 配置
+TWITTER_API_KEY=你的API Key
+TWITTER_API_SECRET=你的API Secret
+TWITTER_ACCESS_TOKEN=你的Access Token
+TWITTER_ACCESS_TOKEN_SECRET=你的Access Token Secret
+TWITTER_BEARER_TOKEN=你的Bearer Token
 
 部署后：
-Vercel会自动处理Python环境的设置
+
 你的bot会通过webhook接收Telegram消息
 确保在Telegram BotFather中设置正确的webhook URL
 
@@ -211,7 +243,7 @@ Vercel会自动处理Python环境的设置
 确保所有依赖都正确列在requirements.txt中
 不要将敏感信息硬编码在代码中
 使用环境变量来配置可变参数
-确保bot token在Vercel的环境变量中正确设置
+确保bot token在环境变量中正确设置
 
 这个部署方案有几个优点：
 免费部署

@@ -8,6 +8,7 @@ import threading
 import signal
 import sys
 from datetime import datetime
+import json
 
 # Configure logging with more detailed output
 logging.basicConfig(
@@ -38,6 +39,39 @@ def telegram():
     """Telegram bot control panel"""
     logger.debug("Accessing Telegram route '/telegram'")
     return render_template('telegram.html')
+
+@app.route('/webhook', methods=['POST'])
+async def telegram_webhook():
+    """处理 Telegram webhook 更新"""
+    try:
+        logger.info("Received Telegram webhook update")
+        update = request.get_json()
+        
+        # 验证 webhook 请求
+        if not update:
+            logger.error("No update data received")
+            return jsonify({'error': 'No update data'}), 400
+            
+        # 处理消息
+        if 'message' in update:
+            message = update['message']
+            chat_id = message.get('chat', {}).get('id')
+            text = message.get('text', '')
+            
+            # 处理命令
+            if text.startswith('/'):
+                command = text.split()[0]
+                await command_manager.process_command(command, 'telegram', message)
+            else:
+                # 处理普通消息
+                await command_manager.process_message('telegram', message)
+                
+        logger.info("Successfully processed webhook update")
+        return jsonify({'status': 'ok'}), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing webhook: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/channels', methods=['GET'])
 async def get_channels():
