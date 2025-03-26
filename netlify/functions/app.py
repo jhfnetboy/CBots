@@ -26,6 +26,14 @@ def handler(event, context):
         # 添加请求头
         for key, value in headers.items():
             environ[f'HTTP_{key.upper().replace("-", "_")}'] = value
+            
+        # 处理根路径重定向
+        if path == '/':
+            return {
+                'statusCode': 302,
+                'headers': {'Location': '/telegram'},
+                'body': ''
+            }
         
         # 处理请求
         with app.request_context(environ):

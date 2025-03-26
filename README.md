@@ -250,3 +250,10 @@ TWITTER_BEARER_TOKEN=你的Bearer Token
 自动缩放
 全球CDN支持
 自动SSL证书管理
+
+可以通过以下 URL 访问：
+https://cbots.netlify.app/ - 重定向到 Telegram 页面
+https://cbots.netlify.app/telegram - Telegram 页面
+https://cbots.netlify.app/twitter - Twitter 页面
+https://cbots.netlify.app/api/* - API 端点
+https://cbots.netlify.app/webhook - Telegram webhook
