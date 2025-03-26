@@ -5,6 +5,8 @@ export PYTHON_VERSION=3.11
 export PYTHON_BIN=python3.11
 export PIP_BIN=pip3.11
 
+VERSION=$(cat version.txt)
+
 # 确保public目录存在
 mkdir -p public
 
