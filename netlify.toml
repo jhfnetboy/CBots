@@ -1,22 +1,21 @@
 [build]
-  command = "pip install -r requirements.txt"
+  command = "pip install -r requirements.txt && bash netlify_deploy.sh"
   publish = "public"
-  functions = "netlify/functions"
+  functions = "netlify/functions-build"
 
 [build.environment]
   PYTHON_VERSION = "3.12"
 
 [[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/app"
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
   status = 200
 
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["telethon", "tweepy", "flask"]
-  included_files = ["templates/**", "static/**"]
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
-[functions.app]
-  runtime = "python3.12"
-  memory = 1024
-  timeout = 30 
+[dev]
+  command = "python run.py"
+  port = 8872 

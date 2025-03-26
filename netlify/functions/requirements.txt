@@ -1,0 +1,4 @@
+flask==3.0.2
+telethon==1.39.0
+tweepy==4.15.0
+python-dotenv==1.0.1

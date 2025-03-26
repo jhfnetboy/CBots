@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Bot Control Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .nav {
+            background-color: #333;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+            min-width: 120px;
+            text-align: center;
+        }
+        .nav a:hover {
+            background-color: #555;
+        }
+        .page-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/telegram">Telegram Bot</a>
+        <a href="/twitter">Twitter Bot</a>
+    </div>
+
+    <div class="container mt-5">
+        <h1 class="page-title">Telegram Bot Control Panel</h1>
+        
+        <div class="row mt-4">
+            <div class="col-md-8 offset-md-2">
+                <form id="messageForm">
+                    <div class="mb-3">
+                        <label for="channelSelect" class="form-label">Select Channel</label>
+                        <select class="form-select" id="channelSelect" required>
+                            <option value="">Loading channels...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message</label>
+                        <textarea class="form-control" id="message" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduledTime" class="form-label">Schedule Time (Optional)</label>
+                        <input type="datetime-local" class="form-control" id="scheduledTime">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load channels from environment variables
+        const channels = [
+            { id: 'TELEGRAM_CHANNEL1', name: 'Channel 1' },
+            { id: 'TELEGRAM_CHANNEL2', name: 'Channel 2' },
+            { id: 'TELEGRAM_CHANNEL3', name: 'Channel 3' }
+        ];
+
+        // Populate select dropdown
+        const channelSelect = document.getElementById('channelSelect');
+        channelSelect.innerHTML = '<option value="">Select a channel</option>';
+        channels.forEach(channel => {
+            const option = document.createElement('option');
+            option.value = channel.id;
+            option.textContent = channel.name;
+            channelSelect.appendChild(option);
+        });
+
+        // Handle form submission
+        document.getElementById('messageForm').onsubmit = async (e) => {
+            e.preventDefault();
+            
+            const channelId = document.getElementById('channelSelect').value;
+            const message = document.getElementById('message').value;
+            const scheduledTime = document.getElementById('scheduledTime').value;
+            
+            if (!channelId || !message) {
+                alert('Please select a channel and enter a message');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/send_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        channel_id: channelId,
+                        message,
+                        scheduled_time: scheduledTime
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert('Message sent successfully!');
+                    document.getElementById('message').value = '';
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error sending message: ' + error);
+            }
+        };
+    </script>
+</body>
+</html> 

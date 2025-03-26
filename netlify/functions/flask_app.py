@@ -1,0 +1,73 @@
+import json
+import sys
+import os
+
+# 添加项目根目录到系统路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+sys.path.append(root_dir)
+
+try:
+    from app import app
+except Exception as e:
+    def handler(event, context):
+        return {
+            'statusCode': 500,
+            'body': json.dumps({
+                'error': f"Failed to import app: {str(e)}",
+                'paths': sys.path
+            })
+        }
+else:
+    def handler(event, context):
+        """Handle incoming Netlify Function requests"""
+        try:
+            # 获取请求信息
+            http_method = event.get('httpMethod', 'GET')
+            path = event.get('path', '/')
+            body = event.get('body', '')
+            headers = event.get('headers', {})
+            
+            # 创建 WSGI 环境
+            environ = {
+                'REQUEST_METHOD': http_method,
+                'PATH_INFO': path,
+                'QUERY_STRING': event.get('queryStringParameters', {}),
+                'wsgi.input': body,
+                'wsgi.errors': '',
+                'wsgi.multithread': False,
+                'wsgi.multiprocess': False,
+                'wsgi.run_once': False,
+            }
+            
+            # 添加请求头
+            for key, value in headers.items():
+                environ[f'HTTP_{key.upper().replace("-", "_")}'] = value
+                
+            # 处理请求
+            with app.request_context(environ):
+                try:
+                    # 设置正确的路径
+                    app.request.path = path
+                    app.request.url = f"https://{headers.get('host', '')}{path}"
+                    response = app.full_dispatch_request()
+                except Exception as e:
+                    app.logger.error(f"Error handling request: {str(e)}")
+                    response = app.handle_exception(e)
+                
+                # 构建响应
+                return {
+                    'statusCode': response.status_code,
+                    'headers': {
+                        'Content-Type': 'text/html; charset=utf-8',
+                        **dict(response.headers)
+                    },
+                    'body': response.get_data(as_text=True)
+                }
+                
+        except Exception as e:
+            return {
+                'statusCode': 500,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': str(e)})
+            } 
