@@ -13,4 +13,10 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["telethon", "tweepy", "flask"] 
+  external_node_modules = ["telethon", "tweepy", "flask"]
+  included_files = ["templates/**", "static/**"]
+
+[functions.app]
+  runtime = "python3.12"
+  memory = 1024
+  timeout = 30 
