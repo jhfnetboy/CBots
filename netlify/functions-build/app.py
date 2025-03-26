@@ -48,7 +48,10 @@ def handler(event, context):
             return {
                 'statusCode': response.status_code,
                 'headers': {
-                    'Content-Type': 'text/html; charset=utf-8',
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type',
+                    'Access-Control-Allow-Methods': 'POST, OPTIONS',
                     **dict(response.headers)
                 },
                 'body': response.get_data(as_text=True)

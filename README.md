@@ -196,9 +196,9 @@ command_manager.py: 统一管理所有机器人的命令和消息处理
 ## 部署
 
 # 创建 Python 3.12 虚拟环境
-uv python install 3.12
+<!-- uv python install 3.12
 uv venv --python 3.12
-source .venv/bin/activate
+source .venv/bin/activate -->
 
 # 安装依赖
 pip install -r requirements.txt
