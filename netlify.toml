@@ -7,28 +7,8 @@
   PYTHON_VERSION = "3.12"
 
 [[redirects]]
-  from = "/"
+  from = "/*"
   to = "/.netlify/functions/app"
-  status = 200
-
-[[redirects]]
-  from = "/telegram"
-  to = "/.netlify/functions/app/telegram"
-  status = 200
-
-[[redirects]]
-  from = "/twitter"
-  to = "/.netlify/functions/app/twitter"
-  status = 200
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/app/api/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/webhook"
-  to = "/.netlify/functions/app/webhook"
   status = 200
 
 [functions]

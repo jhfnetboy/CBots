@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 from app import app
 import json
+import os
 
 def handler(event, context):
     """Handle incoming Netlify Function requests"""
@@ -27,17 +28,13 @@ def handler(event, context):
         for key, value in headers.items():
             environ[f'HTTP_{key.upper().replace("-", "_")}'] = value
             
-        # 处理根路径重定向
-        if path == '/':
-            return {
-                'statusCode': 302,
-                'headers': {'Location': '/telegram'},
-                'body': ''
-            }
-        
         # 处理请求
         with app.request_context(environ):
-            response = app.full_dispatch_request()
+            try:
+                response = app.full_dispatch_request()
+            except Exception as e:
+                app.logger.error(f"Error handling request: {str(e)}")
+                response = app.handle_exception(e)
             
             # 构建响应
             return {

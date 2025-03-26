@@ -12,7 +12,7 @@ import json
 
 # Configure logging with more detailed output
 logging.basicConfig(
-    level=logging.DEBUG,  # 改为 DEBUG 级别
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -24,21 +24,18 @@ loop = None
 
 @app.route('/')
 def index():
-    """Home page - redirect to telegram page"""
-    logger.debug("Accessing root route '/'")
+    """重定向到 Telegram 页面"""
+    return render_template('telegram.html')
+
+@app.route('/telegram')
+def telegram():
+    """Telegram 页面"""
     return render_template('telegram.html')
 
 @app.route('/twitter')
 def twitter():
-    """Twitter bot control panel"""
-    logger.debug("Accessing Twitter route '/twitter'")
+    """Twitter 页面"""
     return render_template('twitter.html')
-
-@app.route('/telegram')
-def telegram():
-    """Telegram bot control panel"""
-    logger.debug("Accessing Telegram route '/telegram'")
-    return render_template('telegram.html')
 
 @app.route('/webhook', methods=['POST'])
 async def telegram_webhook():
