@@ -90,9 +90,12 @@ def send_message():
                         logger.error(f"Error getting input entity: {str(e2)}")
                         raise e2
             
-            # Run the async function in the event loop
-            community = asyncio.run_coroutine_threadsafe(get_entity(), main_loop).result()
+            # Run the async function in the event loop with timeout
+            community = asyncio.run_coroutine_threadsafe(get_entity(), main_loop).result(timeout=30)
             logger.info(f"Successfully retrieved community: {community.title} (ID: {community.id})")
+        except asyncio.TimeoutError:
+            logger.error("Timeout while getting community entity")
+            return jsonify({'error': 'Timeout while getting community information'}), 500
         except Exception as e:
             logger.error(f"Failed to get community entity: {str(e)}")
             return jsonify({'error': f'Failed to get community: {str(e)}'}), 500
@@ -113,23 +116,15 @@ def send_message():
                 logger.info(f"Message content: {message}")
                 logger.info(f"Topic ID: {topic_id}")
                 
-                # Send message to topic
-                try:
-                    # 首先尝试直接发送消息
-                    logger.info("尝试直接发送消息...")
-                    response = await client.send_message(
-                        community,
-                        message
-                    )
-                    logger.info(f"消息发送成功! 消息ID: {response.id}")
-                    return {'success': True, 'message_id': response.id}
-                except Exception as e:
-                    logger.error(f"直接发送消息失败: {str(e)}")
-                    logger.error(f"错误类型: {type(e)}")
-                    
-                    # 尝试使用 reply_to 参数
+                # Send message to topic with retry mechanism
+                max_retries = 3
+                retry_delay = 2  # seconds
+                
+                for attempt in range(max_retries):
                     try:
-                        logger.info("尝试使用 reply_to 参数发送消息...")
+                        logger.info(f"Attempt {attempt + 1} of {max_retries}")
+                        
+                        # 尝试发送消息
                         response = await client.send_message(
                             community,
                             message,
@@ -137,23 +132,14 @@ def send_message():
                         )
                         logger.info(f"消息发送成功! 消息ID: {response.id}")
                         return {'success': True, 'message_id': response.id}
-                    except Exception as e2:
-                        logger.error(f"使用 reply_to 参数发送消息失败: {str(e2)}")
-                        logger.error(f"错误类型: {type(e2)}")
                         
-                        # 尝试使用群组ID
-                        try:
-                            logger.info(f"尝试使用群组ID发送消息... (ID: {community.id})")
-                            response = await client.send_message(
-                                community.id,
-                                message
-                            )
-                            logger.info(f"消息发送成功! 消息ID: {response.id}")
-                            return {'success': True, 'message_id': response.id}
-                        except Exception as e3:
-                            logger.error(f"使用群组ID发送消息失败: {str(e3)}")
-                            logger.error(f"错误类型: {type(e3)}")
-                            raise e3
+                    except Exception as e:
+                        logger.error(f"Attempt {attempt + 1} failed: {str(e)}")
+                        if attempt < max_retries - 1:
+                            logger.info(f"Waiting {retry_delay} seconds before retry...")
+                            await asyncio.sleep(retry_delay)
+                        else:
+                            raise e
                 
             except Exception as e:
                 logger.error(f"发送消息时出错: {str(e)}")
@@ -171,14 +157,17 @@ def send_message():
             logger.info("Message scheduled successfully")
             return jsonify({'success': True, 'scheduled': True})
         else:
-            # Send immediately
+            # Send immediately with timeout
             logger.info("Attempting to send message immediately")
             try:
-                response = asyncio.run_coroutine_threadsafe(send_async(), main_loop).result()
+                response = asyncio.run_coroutine_threadsafe(send_async(), main_loop).result(timeout=60)
                 if 'error' in response:
                     logger.error(f"Error in send_async: {response['error']}")
                     return jsonify(response), 500
                 return jsonify(response)
+            except asyncio.TimeoutError:
+                logger.error("Timeout while sending message")
+                return jsonify({'error': 'Timeout while sending message'}), 500
             except Exception as e:
                 logger.error(f"Error executing send_async: {str(e)}")
                 return jsonify({'error': str(e)}), 500

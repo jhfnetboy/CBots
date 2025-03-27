@@ -75,8 +75,7 @@ async def test_mute_user(client, username):
             send_media=False,
             send_stickers=False,
             send_gifs=False,
-            send_games=False,
-            use_inline_bots=False
+            send_games=False
         )
         
         logger.info(f"Successfully muted user {username}")
@@ -104,8 +103,7 @@ async def test_unmute_user(client, username):
             send_media=True,
             send_stickers=True,
             send_gifs=True,
-            send_games=True,
-            use_inline_bots=True
+            send_games=True
         )
         
         logger.info(f"Successfully unmuted user {username}")
