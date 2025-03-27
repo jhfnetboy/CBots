@@ -50,7 +50,7 @@ def init_twitter_client():
         access_token_secret=access_token_secret
     )
 
-@twitter_bp.route('/twitter')
+@twitter_bp.route('/')
 def index():
     """Render Twitter bot control panel"""
     return render_template('twitter.html', version=VERSION)

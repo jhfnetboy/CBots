@@ -29,6 +29,16 @@ def index():
     """Root endpoint"""
     return render_template('telegram.html', version=VERSION)
 
+@web_bp.route('/twitter')
+def twitter():
+    """Twitter bot page"""
+    return render_template('twitter.html', version=VERSION)
+
+@web_bp.route('/telegram')
+def telegram():
+    """Telegram bot page"""
+    return render_template('telegram.html', version=VERSION)
+
 @web_bp.route('/api/send_message', methods=['POST'])
 def send_message():
     """Send message endpoint"""

@@ -3,7 +3,7 @@ import logging
 import random
 import string
 from datetime import datetime, timedelta
-from telethon.tl.types import ChatPermissions
+from telethon.tl.types import ChatBannedRights
 
 logger = logging.getLogger(__name__)
 
@@ -107,18 +107,16 @@ class BotHandlers:
             if not new_member.bot:
                 # Restrict the new member for 4 hours
                 until_date = datetime.now() + timedelta(hours=4)
-                await client.restrict_chat_member(
-                    chat_id=chat_id,
-                    user_id=new_member.id,
-                    permissions=ChatPermissions(
-                        send_messages=False,
-                        send_media=False,
-                        send_stickers=False,
-                        send_gifs=False,
-                        send_games=False,
-                        use_inline_bots=False
-                    ),
-                    until_date=until_date
+                await client.edit_permissions(
+                    chat_id,
+                    new_member.id,
+                    until_date=until_date,
+                    send_messages=False,
+                    send_media=False,
+                    send_stickers=False,
+                    send_gifs=False,
+                    send_games=False,
+                    use_inline_bots=False
                 )
                 
                 # Send welcome message with instructions
