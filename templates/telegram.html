@@ -95,15 +95,36 @@
     </div>
 
     <script>
-        document.getElementById('messageForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
+        // 添加调试日志函数
+        function debugLog(message) {
+            console.log(`[Debug] ${message}`);
+            // 在页面上显示调试信息
+            const debugDiv = document.getElementById('debug-info');
+            if (debugDiv) {
+                const logEntry = document.createElement('div');
+                logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                debugDiv.appendChild(logEntry);
+                debugDiv.scrollTop = debugDiv.scrollHeight;
+            }
+        }
+
+        // 发送消息函数
+        async function sendMessage() {
+            debugLog('开始发送消息...');
             const channel = document.getElementById('channel').value;
             const message = document.getElementById('message').value;
             const scheduledTime = document.getElementById('scheduled_time').value;
-            const statusDiv = document.getElementById('status');
             
+            debugLog(`准备发送消息 - 频道: ${channel}, 消息: ${message}, 定时: ${scheduledTime}`);
+            
+            if (!channel || !message) {
+                debugLog('错误: 频道和消息不能为空');
+                alert('请填写频道和消息');
+                return;
+            }
+
             try {
+                debugLog('准备发送请求...');
                 const response = await fetch('/api/send_message', {
                     method: 'POST',
                     headers: {
@@ -116,30 +137,63 @@
                     })
                 });
                 
+                debugLog(`收到响应 - 状态码: ${response.status}`);
                 const data = await response.json();
+                debugLog(`响应数据: ${JSON.stringify(data)}`);
                 
                 if (response.ok) {
-                    statusDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            Message ${data.scheduled ? 'scheduled' : 'sent'} successfully!
-                        </div>
-                    `;
-                    document.getElementById('messageForm').reset();
+                    debugLog('消息发送成功');
+                    alert('消息发送成功！');
                 } else {
-                    statusDiv.innerHTML = `
-                        <div class="alert alert-danger">
-                            Error: ${data.error}
-                        </div>
-                    `;
+                    debugLog(`发送失败: ${data.error}`);
+                    alert(`发送失败: ${data.error}`);
                 }
             } catch (error) {
-                statusDiv.innerHTML = `
-                    <div class="alert alert-danger">
-                        Error: ${error.message}
-                    </div>
-                `;
+                debugLog(`发生错误: ${error.message}`);
+                console.error('Error:', error);
+                alert(`发送失败: ${error.message}`);
+            }
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('页面加载完成');
+            
+            // 为发送按钮添加点击事件监听器
+            const sendButton = document.getElementById('messageForm');
+            if (sendButton) {
+                debugLog('找到发送按钮');
+                sendButton.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    debugLog('发送按钮被点击');
+                    sendMessage();
+                });
+            } else {
+                debugLog('错误: 未找到发送按钮');
+            }
+            
+            // 为输入框添加事件监听器
+            const channelInput = document.getElementById('channel');
+            const messageInput = document.getElementById('message');
+            
+            if (channelInput) {
+                channelInput.addEventListener('input', function() {
+                    debugLog(`频道输入变化: ${this.value}`);
+                });
+            }
+            
+            if (messageInput) {
+                messageInput.addEventListener('input', function() {
+                    debugLog(`消息输入变化: ${this.value}`);
+                });
             }
         });
     </script>
+
+    <!-- 添加调试信息显示区域 -->
+    <div id="debug-info" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; height: 200px; overflow-y: auto; background-color: #f5f5f5; font-family: monospace;">
+        <h3>调试信息</h3>
+        <div id="debug-content"></div>
+    </div>
 </body>
 </html> 

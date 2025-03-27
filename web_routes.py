@@ -75,12 +75,20 @@ def send_message():
             async def get_entity():
                 logger.info(f"Attempting to get entity for community: {community_name}")
                 try:
+                    # 尝试直接获取实体
                     entity = await client.get_entity(community_name)
                     logger.info(f"Successfully retrieved entity: {entity.title} (ID: {entity.id})")
                     return entity
                 except Exception as e:
-                    logger.error(f"Error getting entity: {str(e)}")
-                    raise e
+                    logger.error(f"Error getting entity directly: {str(e)}")
+                    # 尝试使用输入实体
+                    try:
+                        input_entity = await client.get_input_entity(community_name)
+                        logger.info(f"Successfully retrieved input entity: {input_entity}")
+                        return input_entity
+                    except Exception as e2:
+                        logger.error(f"Error getting input entity: {str(e2)}")
+                        raise e2
             
             # Run the async function in the event loop
             community = asyncio.run_coroutine_threadsafe(get_entity(), main_loop).result()
@@ -107,6 +115,7 @@ def send_message():
                 
                 # Send message to topic
                 try:
+                    # 尝试使用 reply_to 参数
                     response = await client.send_message(
                         community,
                         message,
@@ -117,7 +126,18 @@ def send_message():
                 except Exception as e:
                     logger.error(f"Error in send_message API call: {str(e)}")
                     logger.error(f"Error type: {type(e)}")
-                    raise e
+                    # 尝试不使用 reply_to 参数
+                    try:
+                        logger.info("Retrying without reply_to parameter")
+                        response = await client.send_message(
+                            community,
+                            message
+                        )
+                        logger.info(f"Message sent successfully! Message ID: {response.id}")
+                        return {'success': True, 'message_id': response.id}
+                    except Exception as e2:
+                        logger.error(f"Error in second attempt: {str(e2)}")
+                        raise e2
                 
             except Exception as e:
                 logger.error(f"Error sending message: {str(e)}")

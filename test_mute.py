@@ -17,16 +17,16 @@ logger = logging.getLogger(__name__)
 API_ID = os.getenv('TELEGRAM_API_ID')
 API_HASH = os.getenv('TELEGRAM_API_HASH')
 BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TEST_GROUP_ID = os.getenv('TELEGRAM_DEFAULT_GROUP')  # 使用默认群组ID进行测试
+TEST_GROUP = "Account_Abstraction_Community"  # 使用群组用户名
 TEST_USERNAME = "nicolasshuaishuai"  # 测试用户名
 
-async def get_user_from_group(client, group_id, username):
+async def get_user_from_group(client, group_username, username):
     """从群组中获取用户信息"""
     try:
-        logger.info(f"Attempting to get user {username} from group {group_id}")
+        logger.info(f"Attempting to get user {username} from group {group_username}")
         # 获取群组信息
-        group = await client.get_entity(group_id)
-        logger.info(f"Found group: {group.title}")
+        group = await client.get_entity(group_username)
+        logger.info(f"Found group: {group.title} (ID: {group.id})")
         
         # 获取群组成员
         async for member in client.iter_participants(group):
@@ -34,7 +34,7 @@ async def get_user_from_group(client, group_id, username):
                 logger.info(f"Found user: {member.first_name} (ID: {member.id}, Username: {member.username})")
                 return member
                 
-        logger.error(f"User {username} not found in group {group_id}")
+        logger.error(f"User {username} not found in group {group_username}")
         return None
     except Exception as e:
         logger.error(f"Error getting user from group: {str(e)}")
@@ -43,10 +43,10 @@ async def get_user_from_group(client, group_id, username):
 async def test_mute_user(client, username):
     """测试禁言用户功能"""
     try:
-        logger.info(f"Attempting to mute user {username} in group {TEST_GROUP_ID}")
+        logger.info(f"Attempting to mute user {username} in group {TEST_GROUP}")
         
         # 从群组中获取用户
-        user = await get_user_from_group(client, TEST_GROUP_ID, username)
+        user = await get_user_from_group(client, TEST_GROUP, username)
         if not user:
             logger.error("Could not find user in group")
             return False
@@ -56,7 +56,7 @@ async def test_mute_user(client, username):
         
         # 使用 edit_permissions 进行禁言
         await client.edit_permissions(
-            TEST_GROUP_ID,
+            TEST_GROUP,
             user.id,
             until_date=until_date,
             send_messages=False,
@@ -76,17 +76,17 @@ async def test_mute_user(client, username):
 async def test_unmute_user(client, username):
     """测试解除禁言功能"""
     try:
-        logger.info(f"Attempting to unmute user {username} in group {TEST_GROUP_ID}")
+        logger.info(f"Attempting to unmute user {username} in group {TEST_GROUP}")
         
         # 从群组中获取用户
-        user = await get_user_from_group(client, TEST_GROUP_ID, username)
+        user = await get_user_from_group(client, TEST_GROUP, username)
         if not user:
             logger.error("Could not find user in group")
             return False
             
         # 解除禁言
         await client.edit_permissions(
-            TEST_GROUP_ID,
+            TEST_GROUP,
             user.id,
             send_messages=True,
             send_media=True,
