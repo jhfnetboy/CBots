@@ -1,4 +1,4 @@
-flask[async]==3.0.2
+flask>=3.0.0
 telethon==1.39.0
 tweepy==4.15.0
 python-dotenv==1.0.1
@@ -8,4 +8,4 @@ aiohttp==3.9.3
 apscheduler==3.10.4
 nest-asyncio==1.6.0
 watchdog==3.0.0
-aioflask==0.4.0 
+quart==0.19.4 

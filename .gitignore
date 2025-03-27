@@ -187,3 +187,5 @@ bot_session.session
 
 # Local Netlify folder
 .netlify
+bot.session
+bot.session-journal
