@@ -12,6 +12,10 @@ class BotHandlers:
     async def send_online_message(self, client):
         """Send online message to default group"""
         try:
+            if not self.default_group_id:
+                logger.error("TELEGRAM_DEFAULT_GROUP not set in environment variables")
+                return
+                
             message = "Hi，COS72 Bot is online now。/help了解更多。"
             await client.send_message(self.default_group_id, message)
             logger.info(f"Sent online message to group {self.default_group_id}")
@@ -21,6 +25,10 @@ class BotHandlers:
     async def send_daily_password(self, client):
         """Send daily password to default group"""
         try:
+            if not self.default_group_id:
+                logger.error("TELEGRAM_DEFAULT_GROUP not set in environment variables")
+                return
+                
             password = os.getenv('DAILY_PASSWORD', '')
             await client.send_message(self.default_group_id, f"今日密码：{password}")
             logger.info(f"Sent daily password to group {self.default_group_id}")
@@ -32,7 +40,12 @@ class BotHandlers:
         try:
             message_text = event.message.text
             user_id = event.sender_id
-            username = event.sender.username or "user"
+            
+            # Get username safely
+            try:
+                username = event.sender.username or "user"
+            except:
+                username = "user"
             
             # Check if user is muted
             if user_id in self.muted_users:
@@ -47,7 +60,7 @@ class BotHandlers:
                 return
             
             # Handle mentions
-            if event.message.mentioned:
+            if hasattr(event.message, 'mentioned') and event.message.mentioned:
                 await event.reply(f"Hi {username}, I get your message: {message_text}")
                 return
             

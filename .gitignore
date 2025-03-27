@@ -11,6 +11,9 @@ tmp/*.*
 .netlify
 .netlify/*
 bot_session.session
+path/*
+path/to/env/*
+path/to/env/*.*
 
 .telethon_sessions/*
 # C extensions

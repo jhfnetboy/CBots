@@ -3,7 +3,7 @@ import json
 import logging
 import asyncio
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from telethon import TelegramClient, events
 from command_manager import CommandManager
 from bot_handlers import BotHandlers
@@ -55,10 +55,7 @@ async def schedule_tasks(client):
 @app.route('/')
 def index():
     """Root endpoint"""
-    return jsonify({
-        'status': 'ok',
-        'message': 'COS72 Bot is running'
-    })
+    return render_template('telegram.html')
 
 @app.route('/send_message', methods=['POST'])
 async def send_message():
@@ -81,7 +78,7 @@ async def send_message():
 def setup_handlers(client):
     """Set up event handlers for the client"""
     
-    @client.on(events.NewMessage(pattern=lambda e: not e.startswith('/')))
+    @client.on(events.NewMessage)
     async def handle_message(event):
         await bot_handlers.handle_message(event, command_manager)
 

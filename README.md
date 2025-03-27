@@ -293,6 +293,9 @@ https://cbots.netlify.app/api/* - API 端点
 https://cbots.netlify.app/webhook - Telegram webhook
 
 ### tele消息处理机制
+bot基本功能
+1. 上线后在默认群组发送上线消息
+2. 
 消息处理机制再次确认：
 
 1.目前非at和非/hi等命令之外消息只在一个函数进行命令行log，不做其他处理
