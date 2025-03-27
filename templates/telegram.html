@@ -112,12 +112,12 @@
             let channelId;
             
             if (channelSelect === 'custom') {
-                if (!customChannelId || isNaN(parseInt(customChannelId))) {
-                    alert('Please enter a valid numeric channel ID');
+                if (!customChannelId) {
+                    alert('Please enter a channel ID in format: Account_Abstraction_Community/18472');
                     return;
                 }
-                // Properly format channel ID with -100 prefix
-                channelId = parseInt("-100" + customChannelId);
+                // 直接使用用户输入的格式
+                channelId = customChannelId;
             } else if (channelSelect) {
                 // Use predefined channels (already properly formatted with -100 prefix)
                 if (channelSelect === 'channel1') {

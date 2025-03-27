@@ -18,7 +18,7 @@ web_bp = Blueprint('web', __name__)
 main_loop = None
 
 # Version
-VERSION = "0.23.2"
+VERSION = "0.23.4"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -36,19 +36,24 @@ def send_message():
     try:
         data = request.get_json()
         message = data.get('message')
-        channel_id = data.get('channel_id')  # 前端传入的带-100前缀的频道ID
+        channel_input = data.get('channel_id')  # 格式: Account_Abstraction_Community/18472
         scheduled_time = data.get('scheduled_time')
         
-        if not message or not channel_id:
-            return jsonify({'error': 'Missing message or channel ID'}), 400
+        if not message or not channel_input:
+            return jsonify({'error': 'Missing message or channel input'}), 400
             
-        # 验证频道ID是否为数字
+        # 处理频道ID
         try:
-            channel_id = int(channel_id)
-            logger.info(f"Using channel ID: {channel_id}")
-        except ValueError:
-            logger.error(f"Invalid channel ID format: {channel_id}")
-            return jsonify({'error': 'Please enter a valid numeric channel ID'}), 400
+            # 从 Account_Abstraction_Community/18472 格式中提取数字
+            parts = str(channel_input).split('/')
+            if len(parts) < 2:
+                raise ValueError("Invalid format")
+            channel_number = parts[-1].strip()
+            channel_id = int(channel_number)
+            logger.info(f"Extracted channel ID: {channel_id}")
+        except (IndexError, ValueError) as e:
+            logger.error(f"Failed to extract channel ID: {str(e)}")
+            return jsonify({'error': 'Invalid channel input format. Please use format: Account_Abstraction_Community/18472'}), 400
             
         # Log the message
         logger.info(f"Sending message to channel {channel_id}: {message}")
