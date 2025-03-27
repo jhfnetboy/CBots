@@ -8,7 +8,7 @@ from telethon import TelegramClient, events
 from command_manager import CommandManager
 from bot_handlers import BotHandlers
 from dotenv import load_dotenv
-from web_routes import init_web_routes
+from web_routes import init_web_routes, set_main_loop
 
 # Load environment variables
 load_dotenv()
@@ -94,6 +94,9 @@ async def main():
     
     # Start the scheduler
     scheduler_task = asyncio.create_task(schedule_tasks(client))
+    
+    # Set the main event loop for web routes
+    set_main_loop(asyncio.get_event_loop())
     
     # Run Flask in a separate thread
     import threading

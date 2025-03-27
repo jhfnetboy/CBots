@@ -3,12 +3,21 @@ import logging
 import asyncio
 from datetime import datetime
 import os
+import threading
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Create blueprint
 web_bp = Blueprint('web', __name__)
+
+# Store the main event loop
+main_loop = None
+
+def set_main_loop(loop):
+    """Set the main event loop"""
+    global main_loop
+    main_loop = loop
 
 @web_bp.route('/')
 def index():
@@ -67,10 +76,11 @@ def send_message():
                 logger.error(f"Error in send_async: {str(e)}")
                 raise
         
-        # Get the current event loop
-        loop = asyncio.get_event_loop()
-        # Run the async task in the current loop
-        loop.create_task(send_async())
+        # Create a future to wait for the result
+        future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
+        
+        # Wait for the result
+        future.result(timeout=30)  # 30 seconds timeout
         
         return jsonify({'status': 'success'}), 200
     except Exception as e:
