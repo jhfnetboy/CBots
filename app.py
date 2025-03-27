@@ -10,6 +10,7 @@ import sys
 from datetime import datetime
 import json
 from command_manager import command_manager
+from aioflask import Flask
 
 # Configure logging with more detailed output
 logging.basicConfig(
@@ -155,18 +156,12 @@ async def send_message():
             if delay > 0:
                 await asyncio.sleep(delay)
         
-        # Create a future for the send_message operation
-        future = asyncio.run_coroutine_threadsafe(
-            telegram_bot.send_message(
-                message=message,
-                chat_id=group,
-                reply_to=int(topic_id) if topic_id else None
-            ),
-            loop
+        # 直接使用 telegram_bot 发送消息
+        await telegram_bot.send_message(
+            message=message,
+            chat_id=group,
+            reply_to=int(topic_id) if topic_id else None
         )
-        
-        # Wait for the future to complete
-        await asyncio.wrap_future(future)
         
         return jsonify({
             'status': 'success',
@@ -181,7 +176,7 @@ async def send_message():
         }), 500
 
 @app.route('/api/twitter/send', methods=['POST'])
-def send_tweet():
+async def send_tweet():
     try:
         logger.info("=== Starting Twitter Send Request ===")
         # 记录请求数据
@@ -208,9 +203,8 @@ def send_tweet():
             logger.error("Twitter bot not initialized")
             return jsonify({'error': 'Twitter bot not initialized'}), 500
 
-        # 使用 asyncio 运行异步函数
-        future = asyncio.run_coroutine_threadsafe(twitter_bot.send_tweet(tweet_content), loop)
-        tweet_url = future.result()  # 等待结果并获取推文URL
+        # 直接使用 twitter_bot 发送推文
+        tweet_url = await twitter_bot.send_tweet(tweet_content)
         
         logger.info("=== Twitter Send Request Completed ===")
         return jsonify({
@@ -251,52 +245,44 @@ async def initialize_bots():
     """Initialize all bots"""
     global bot_manager
     try:
-        logger.info("=== Initializing Bot Manager ===")
         bot_manager = BotManager()
         await bot_manager.initialize()
-        logger.info("Bot Manager initialized successfully")
+        logger.info("All bots initialized successfully")
     except Exception as e:
         logger.error(f"Error initializing bots: {e}", exc_info=True)
         raise
 
-def start_app():
-    """Start the Flask application"""
+def main():
+    """Main function"""
     global loop, flask_thread
+    
     try:
-        logger.info("=== Starting Application ===")
-        
         # 设置信号处理
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
         
-        # 创建新的事件循环
+        # 创建事件循环
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        logger.debug("Event loop created and set")
         
         # 初始化机器人
-        logger.info("Initializing bots...")
         loop.run_until_complete(initialize_bots())
         
-        # 在新线程中启动Flask
-        logger.info("Starting Flask server in separate thread...")
+        # 启动 Flask 服务器
         flask_thread = threading.Thread(target=run_flask)
         flask_thread.daemon = True
         flask_thread.start()
-        logger.debug("Flask thread started")
         
         # 运行事件循环
-        logger.info("Starting event loop...")
         loop.run_forever()
         
     except Exception as e:
-        logger.error(f"Error starting application: {e}", exc_info=True)
+        logger.error(f"Error in main: {e}", exc_info=True)
         if loop:
-            loop.close()
-        raise
-    finally:
-        logger.info("Application shutdown complete")
+            loop.stop()
+        if flask_thread:
+            flask_thread.join()
+        sys.exit(1)
 
 if __name__ == '__main__':
-    logger.info("=== Application Entry Point ===")
-    start_app() 
+    main() 

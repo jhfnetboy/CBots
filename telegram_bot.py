@@ -119,7 +119,7 @@ class TelegramBot:
                 await command_manager.process_command('account', event, self)
 
             # 注册消息处理器
-            @self.client.on(events.NewMessage)
+            @self.client.on(events.NewMessage(func=lambda e: not e.message.text.startswith('/')))
             async def message_handler(event):
                 await command_manager.process_message(event, self)
 
