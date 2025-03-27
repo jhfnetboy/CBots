@@ -66,19 +66,16 @@ async def test_mute_user(client, username):
         # 设置禁言时间为4小时
         until_date = datetime.now() + timedelta(hours=4)
         
-        # 使用 restrict_chat_member 进行禁言
-        await client.restrict_chat_member(
+        # 使用 edit_permissions 进行禁言
+        await client.edit_permissions(
             TEST_GROUP,
             user.id,
             until_date=until_date,
-            permissions=ChatBannedRights(
-                until_date=until_date,
-                send_messages=True,
-                send_media=True,
-                send_stickers=True,
-                send_gifs=True,
-                send_games=True
-            )
+            send_messages=False,
+            send_media=False,
+            send_stickers=False,
+            send_gifs=False,
+            send_games=False
         )
         
         logger.info(f"Successfully muted user {username} until {until_date}")
@@ -99,18 +96,15 @@ async def test_unmute_user(client, username):
             return False
             
         # 解除禁言
-        await client.restrict_chat_member(
+        await client.edit_permissions(
             TEST_GROUP,
             user.id,
             until_date=None,
-            permissions=ChatBannedRights(
-                until_date=None,
-                send_messages=False,
-                send_media=False,
-                send_stickers=False,
-                send_gifs=False,
-                send_games=False
-            )
+            send_messages=True,
+            send_media=True,
+            send_stickers=True,
+            send_gifs=True,
+            send_games=True
         )
         
         logger.info(f"Successfully unmuted user {username}")
