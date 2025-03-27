@@ -4,6 +4,8 @@ from telethon import TelegramClient, events
 from telethon.tl.types import Message
 from datetime import datetime, timedelta
 from command_manager import command_manager, BotType
+import asyncio
+from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +40,13 @@ class TelegramBot:
             # 启动客户端
             await self.client.start(bot_token=self.bot_token)
             
+            # 发送启动通知
+            if self.target_group:
+                await self.client.send_message(
+                    self.target_group,
+                    "🤖 Bot is now online and ready to serve!"
+                )
+            
             # 注册命令处理器
             command_manager.register_command('start', self.handle_start, BotType.TELEGRAM)
             command_manager.register_command('help', self.handle_help, BotType.TELEGRAM)
@@ -55,6 +64,9 @@ class TelegramBot:
             
             # 设置事件处理器
             self.setup_handlers()
+            
+            # 启动每日密码发送任务
+            asyncio.create_task(self.start_daily_verification())
             
             logger.info("Telegram bot started successfully")
         except Exception as e:
@@ -108,7 +120,7 @@ class TelegramBot:
                 await command_manager.process_command('account', event, self)
 
             # 注册消息处理器
-            @self.client.on(events.NewMessage)
+            @self.client.on(events.NewMessage(func=lambda e: not e.message.text.startswith('/')))
             async def message_handler(event):
                 await command_manager.process_message(event, self)
 
@@ -122,6 +134,11 @@ class TelegramBot:
                             event.chat_id,
                             f"👋 {user.first_name} is now online!"
                         )
+
+            # 注册新成员加入处理器
+            @self.client.on(events.ChatAction.NewParticipant)
+            async def handle_new_member(event):
+                await self.handle_new_member(event)
 
             logger.info("Telegram bot event handlers set up successfully")
         except Exception as e:
@@ -311,3 +328,94 @@ Available commands:
         except Exception as e:
             logger.error(f"Error handling new user: {e}", exc_info=True)
             raise
+
+    async def start_daily_verification(self):
+        """Start the daily verification task"""
+        while True:
+            try:
+                # 等待到下一个整点
+                now = datetime.now()
+                next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                await asyncio.sleep((next_hour - now).total_seconds())
+                
+                # 发送每日密码
+                await self.send_daily_verification()
+            except Exception as e:
+                logger.error(f"Error in daily verification task: {e}", exc_info=True)
+                await asyncio.sleep(60)  # 出错后等待1分钟再试
+
+    async def handle_new_member(self, event):
+        """处理新成员加入事件"""
+        try:
+            # 获取新成员信息
+            new_member = event.new_participant
+            if not new_member:
+                return
+            
+            # 获取群组信息
+            chat = await event.get_chat()
+            logger.info(f"New member {new_member.first_name} joined group {chat.title}")
+            
+            # 设置禁言时间为4小时
+            until_date = datetime.now() + timedelta(hours=4)
+            
+            try:
+                # 禁言新成员
+                await event.client.edit_permissions(
+                    chat,
+                    new_member.id,
+                    until_date=until_date,
+                    send_messages=False,
+                    send_media=False,
+                    send_stickers=False,
+                    send_gifs=False,
+                    send_games=False
+                )
+                logger.info(f"Successfully muted new member {new_member.first_name} until {until_date}")
+                
+                # 发送欢迎消息
+                welcome_message = (
+                    f"欢迎 {new_member.first_name} 加入群组！\n"
+                    "为了维护群组秩序，新成员将被禁言4小时。\n"
+                    "请私聊机器人并发送每日密码以解除禁言。"
+                )
+                await event.reply(welcome_message)
+                
+            except Exception as e:
+                logger.error(f"Error muting new member: {str(e)}")
+            
+        except Exception as e:
+            logger.error(f"Error handling new member: {str(e)}")
+
+async def main():
+    """主函数"""
+    try:
+        # 加载环境变量
+        load_dotenv()
+        
+        # 获取配置
+        api_id = os.getenv('TELEGRAM_API_ID')
+        api_hash = os.getenv('TELEGRAM_API_HASH')
+        bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+        
+        if not all([api_id, api_hash, bot_token]):
+            logger.error("Missing required environment variables")
+            return
+            
+        # 创建客户端
+        client = TelegramClient('bot_session', api_id, api_hash)
+        
+        # 添加事件处理器
+        client.add_event_handler(handle_new_member, events.ChatAction.NewParticipant)
+        
+        # 启动客户端
+        await client.start(bot_token=bot_token)
+        logger.info("Bot started successfully")
+        
+        # 保持运行
+        await client.run_until_disconnected()
+        
+    except Exception as e:
+        logger.error(f"Error in main: {str(e)}")
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Error details: {str(e)}")

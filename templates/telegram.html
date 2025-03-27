@@ -3,130 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Bot Control Panel</title>
+    <title>Telegram Bot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .nav {
-            background-color: #333;
-            padding: 15px;
-            text-align: center;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        body {
+            background-color: #f8f9fa;
         }
-        .nav a {
+        .container {
+            max-width: 800px;
+            margin-top: 2rem;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background-color: #0088cc;
             color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1rem;
+        }
+        .form-control {
+            border-radius: 10px;
+            padding: 0.75rem;
+        }
+        .btn-primary {
+            background-color: #0088cc;
+            border-color: #0088cc;
+            border-radius: 10px;
+            padding: 0.75rem 2rem;
+        }
+        .btn-primary:hover {
+            background-color: #006699;
+            border-color: #006699;
+        }
+        .nav-links {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .nav-links a {
+            color: #0088cc;
             text-decoration: none;
-            padding: 10px 20px;
-            margin: 0 10px;
-            border-radius: 3px;
-            transition: background-color 0.3s;
-            min-width: 120px;
-            text-align: center;
+            margin: 0 1rem;
+            font-weight: 500;
         }
-        .nav a:hover {
-            background-color: #555;
+        .nav-links a:hover {
+            color: #006699;
         }
-        .page-title {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #333;
+        .version {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            color: #6c757d;
+            font-size: 0.8em;
         }
     </style>
 </head>
 <body>
-    <div class="nav">
-        <a href="/telegram">Telegram Bot</a>
-        <a href="/twitter">Twitter Bot</a>
-    </div>
-
-    <div class="container mt-5">
-        <h1 class="page-title">Telegram Bot Control Panel</h1>
-        
-        <div class="row mt-4">
-            <div class="col-md-8 offset-md-2">
+    <div class="container">
+        <div class="nav-links">
+            <a href="/">Telegram Bot</a> |
+            <a href="/twitter">Twitter Bot</a>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Telegram Bot Control Panel</h4>
+            </div>
+            <div class="card-body">
                 <form id="messageForm">
                     <div class="mb-3">
-                        <label for="channelSelect" class="form-label">Select Channel</label>
-                        <select class="form-select" id="channelSelect" required>
-                            <option value="">Loading channels...</option>
-                        </select>
+                        <label for="channel" class="form-label">Input Topic Name</label>
+                        <input type="text" class="form-control" id="channel" name="channel" 
+                               placeholder="e.g., Account_Abstraction_Community/2817" required>
                     </div>
-                    
                     <div class="mb-3">
                         <label for="message" class="form-label">Message</label>
-                        <textarea class="form-control" id="message" rows="4" required></textarea>
+                        <textarea class="form-control" id="message" name="message" rows="4" required></textarea>
                     </div>
-                    
                     <div class="mb-3">
-                        <label for="scheduledTime" class="form-label">Schedule Time (Optional)</label>
-                        <input type="datetime-local" class="form-control" id="scheduledTime">
+                        <label for="scheduled_time" class="form-label">Schedule Time (Optional)</label>
+                        <input type="datetime-local" class="form-control" id="scheduled_time" name="scheduled_time">
                     </div>
-                    
                     <button type="submit" class="btn btn-primary">Send Message</button>
                 </form>
+                <div id="status" class="mt-3"></div>
             </div>
+        </div>
+        <div class="text-center mt-4">
+            <small class="text-muted">Version {{ version }}</small>
         </div>
     </div>
 
     <script>
-        // Load channels from environment variables
-        const channels = [
-            { id: 'TELEGRAM_CHANNEL1', name: 'Channel 1' },
-            { id: 'TELEGRAM_CHANNEL2', name: 'Channel 2' },
-            { id: 'TELEGRAM_CHANNEL3', name: 'Channel 3' }
-        ];
+        // 添加调试日志函数
+        function debugLog(message) {
+            console.log(`[Debug] ${message}`);
+            // 在页面上显示调试信息
+            const debugDiv = document.getElementById('debug-info');
+            if (debugDiv) {
+                const logEntry = document.createElement('div');
+                logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                debugDiv.appendChild(logEntry);
+                debugDiv.scrollTop = debugDiv.scrollHeight;
+            }
+        }
 
-        // Populate select dropdown
-        const channelSelect = document.getElementById('channelSelect');
-        channelSelect.innerHTML = '<option value="">Select a channel</option>';
-        channels.forEach(channel => {
-            const option = document.createElement('option');
-            option.value = channel.id;
-            option.textContent = channel.name;
-            channelSelect.appendChild(option);
-        });
-
-        // Handle form submission
-        document.getElementById('messageForm').onsubmit = async (e) => {
-            e.preventDefault();
-            
-            const channelId = document.getElementById('channelSelect').value;
+        // 发送消息函数
+        async function sendMessage() {
+            debugLog('开始发送消息...');
+            const channel = document.getElementById('channel').value;
             const message = document.getElementById('message').value;
-            const scheduledTime = document.getElementById('scheduledTime').value;
+            const scheduledTime = document.getElementById('scheduled_time').value;
             
-            if (!channelId || !message) {
-                alert('Please select a channel and enter a message');
+            debugLog(`准备发送消息 - 频道: ${channel}, 消息: ${message}, 定时: ${scheduledTime}`);
+            
+            if (!channel || !message) {
+                debugLog('错误: 频道和消息不能为空');
+                alert('请填写频道和消息');
                 return;
             }
-            
+
             try {
+                debugLog('准备发送请求...');
                 const response = await fetch('/api/send_message', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        channel_id: channelId,
-                        message,
-                        scheduled_time: scheduledTime
+                        channel: channel,
+                        message: message,
+                        scheduled_time: scheduledTime || null
                     })
                 });
                 
-                const result = await response.json();
+                debugLog(`收到响应 - 状态码: ${response.status}`);
+                const data = await response.json();
+                debugLog(`响应数据: ${JSON.stringify(data)}`);
                 
-                if (result.status === 'success') {
-                    alert('Message sent successfully!');
-                    document.getElementById('message').value = '';
+                if (response.ok) {
+                    debugLog('消息发送成功');
+                    alert('消息发送成功！');
                 } else {
-                    alert('Error: ' + result.message);
+                    debugLog(`发送失败: ${data.error}`);
+                    alert(`发送失败: ${data.error}`);
                 }
             } catch (error) {
-                alert('Error sending message: ' + error);
+                debugLog(`发生错误: ${error.message}`);
+                console.error('Error:', error);
+                alert(`发送失败: ${error.message}`);
             }
-        };
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('页面加载完成');
+            
+            // 为发送按钮添加点击事件监听器
+            const sendButton = document.getElementById('messageForm');
+            if (sendButton) {
+                debugLog('找到发送按钮');
+                sendButton.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    debugLog('发送按钮被点击');
+                    sendMessage();
+                });
+            } else {
+                debugLog('错误: 未找到发送按钮');
+            }
+            
+            // 为输入框添加事件监听器
+            const channelInput = document.getElementById('channel');
+            const messageInput = document.getElementById('message');
+            
+            if (channelInput) {
+                channelInput.addEventListener('input', function() {
+                    debugLog(`频道输入变化: ${this.value}`);
+                });
+            }
+            
+            if (messageInput) {
+                messageInput.addEventListener('input', function() {
+                    debugLog(`消息输入变化: ${this.value}`);
+                });
+            }
+        });
     </script>
+
+    <!-- 添加调试信息显示区域 -->
+    <div id="debug-info" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; height: 200px; overflow-y: auto; background-color: #f5f5f5; font-family: monospace;">
+        <h3>调试信息</h3>
+        <div id="debug-content"></div>
+    </div>
 </body>
 </html> 

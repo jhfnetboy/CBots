@@ -4,7 +4,15 @@
   functions = "netlify/functions-build"
 
 [build.environment]
-  PYTHON_VERSION = "3.12"
+  PYTHON_VERSION = "3.11"
+  PYTHON_MAJOR_VERSION = "3"
+  PYTHON_MINOR_VERSION = "11"
+  PYTHON_PATCH_VERSION = "8"
+  PYTHON_MAJOR_MINOR_VERSION = "3.11"
+  PYTHON_FULL_VERSION = "3.11.8"
+  PYTHON_RUNTIME = "python3.11"
+  PYTHON_BIN = "python3.11"
+  PIP_BIN = "pip3.11"
 
 [[redirects]]
   from = "/api/*"

@@ -191,7 +191,39 @@ command_manager.py: 统一管理所有机器人的命令和消息处理
 
 对于命令，要有专门对应每个命令的函数，目前除了hi和help，其他统一回复：Hi usernmae，you invoke funtion：命令名字
 
-这个之前已经实现了，为何修改文件锁定反而都丢失了，请恢复
+启动时正确发送上线消息
+新用户加入时自动禁言24小时
+禁言用户无法在群组中发言
+用户可以通过私聊发送每日密码来解除禁言（1小时后可以发言）
+
+列出8872进程：lsof -i :8872 | grep LISTEN
+
+kill -9 id
+
+代码重构：
+创建了 BotHandlers 类来管理所有机器人功能
+将功能代码和系统代码分离
+主要功能现在在 bot_handlers.py 中：
+消息处理
+用户管理
+密码验证
+禁言/解禁逻辑
+改进的系统架构：
+app.py 现在专注于：
+系统配置
+事件循环管理
+进程和线程管理
+路由设置
+客户端初始化
+更容易维护和修改功能
+更清晰的责任分离
+更好的代码组织
+其他改进：
+更好的错误处理
+更清晰的日志记录
+更模块化的代码结构
+更容易测试和扩展
+
 
 ## 部署
 
@@ -199,6 +231,9 @@ command_manager.py: 统一管理所有机器人的命令和消息处理
 uv python install 3.12
 uv venv --python 3.12
 source .venv/bin/activate
+
+# 安装依赖
+pip install -r requirements.txt
 
 # 1. 安装 Netlify CLI
 npm install -g netlify-cli
@@ -212,8 +247,7 @@ netlify init
 # 4. 部署
 netlify deploy --prod
 
-# 安装依赖
-pip install -r requirements.txt
+
 
 部署
 
@@ -257,3 +291,50 @@ https://cbots.netlify.app/telegram - Telegram 页面
 https://cbots.netlify.app/twitter - Twitter 页面
 https://cbots.netlify.app/api/* - API 端点
 https://cbots.netlify.app/webhook - Telegram webhook
+
+### tele消息处理机制
+bot基本功能
+1. 上线后在默认群组发送上线消息
+2. 网页输入：用户选择custom，输入Account_Abstraction_Community/18472，输入内容，然后send发送消息到该频道
+消息处理机制再次确认：
+
+1.目前非at和非/hi等命令之外消息只在一个函数进行命令行log，不做其他处理
+2. /hi等命令有专门的函数处理，每个命令一个函数，是独立函数
+3. at bot的消息独立处理，目前只有一个过滤函数：当消息包含每日密码，则解禁该用户发言
+
+#### Tele的命令
+Available commands:
+/start - Start the bot
+/help - Show this help message
+/hi - Say hello
+/content - Content management
+/price - Price information
+/event - Event management
+/task - Task management
+/news - News updates
+/PNTs - PNTs information
+/account - Account management
+
+#### 关于新用户
+1. 新用户指新加入群组的telegram用户
+2. 默认新用户会自动被设置4小时禁言，针对所有群组有效
+3. bot会上线后自动发送每日密码（一串随机字符串，每日更新）到群内
+4. /pass命令 bot会再次发送每日密码到群内
+5. 新用户只有私聊bot，发送每日密码给bot，bot过滤得到符合每日密码后解禁该用户的发言；从此后此用户就不是新用户，而是老用户，自由发言了
+6. at bot消息回复：自动回复Hi username，I get your message：原内容
+/hi，回复：Hi， my friends，this is COS72 Bot。
+
+每次中文沟通
+每次不要扩散修改范围，只针对问题
+每次都不要擅自优化和扩张功能范围
+每次修改后请运行app.py
+每次更新，记得更新version，例如0.23.0 -——-》 0.23.1，递增0.1
+每次记得输出更改了那几个文件，会可能影响那些功能
+测试禁言功能用username=nicolasshuaishuai
+
+频道输入的处理方式：
+从 Account_Abstraction_Community/2817 格式中提取社区名称和话题 ID
+使用社区名称获取社区实体
+使用 reply_to 参数指定话题 ID
+更新了日志信息，使其更清晰
+修改了定时消息的发送方式，确保也发送到正确的话题
