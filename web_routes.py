@@ -49,14 +49,12 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # Convert chat_id to integer and add -100 prefix for channels
-                numeric_id = int(chat_id)
-                if numeric_id > 0:
-                    numeric_id = -100 + numeric_id
+                # First get the input entity
+                entity = await client.get_input_entity(chat_id)
                 
-                # Send message directly using numeric ID
-                await client.send_message(numeric_id, message)
-                logger.info(f"Message sent successfully to {numeric_id}")
+                # Send message using the entity
+                await client.send_message(entity, message)
+                logger.info(f"Message sent successfully to {chat_id}")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
                 raise
