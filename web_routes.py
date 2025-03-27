@@ -117,19 +117,12 @@ def send_message():
             # Send immediately
             logger.info("Attempting to send message immediately")
             try:
-                # 使用主事件循环发送消息
-                future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
-                try:
-                    response = future.result(timeout=60)  # 增加超时时间到60秒
-                    if 'error' in response:
-                        logger.error(f"Error in send_async: {response['error']}")
-                        return jsonify(response), 500
-                    return jsonify(response)
-                except asyncio.TimeoutError:
-                    logger.error("Timeout while sending message")
-                    # 尝试取消任务
-                    future.cancel()
-                    return jsonify({'error': 'Timeout while sending message'}), 500
+                # 使用 asyncio.run 发送消息
+                response = asyncio.run(send_async())
+                if 'error' in response:
+                    logger.error(f"Error in send_async: {response['error']}")
+                    return jsonify(response), 500
+                return jsonify(response)
             except Exception as e:
                 logger.error(f"Error executing send_async: {str(e)}")
                 return jsonify({'error': str(e)}), 500

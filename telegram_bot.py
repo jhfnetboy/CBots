@@ -66,62 +66,7 @@ class TelegramBot:
             self.setup_handlers()
             
             # 注册新成员加入处理器
-            @self.client.on(events.ChatAction.NewParticipant)
-            async def new_member_handler(event):
-                logger.info("New member handler triggered")
-                try:
-                    # 获取新成员信息
-                    new_member = event.new_participant
-                    if not new_member:
-                        logger.warning("No new member found in event")
-                        return
-                    
-                    # 获取群组信息
-                    chat = await event.get_chat()
-                    logger.info(f"New member {new_member.first_name} (ID: {new_member.id}) joined group {chat.title} (ID: {chat.id})")
-                    
-                    # 设置禁言时间为4小时
-                    until_date = datetime.now() + timedelta(hours=4)
-                    logger.info(f"Setting mute until {until_date}")
-                    
-                    try:
-                        # 获取用户权限
-                        permissions = await event.client.get_permissions(chat, new_member)
-                        logger.info(f"Current permissions for user: {permissions}")
-                        
-                        # 禁言新成员
-                        logger.info(f"Attempting to mute user {new_member.first_name} (ID: {new_member.id})")
-                        await event.client.edit_permissions(
-                            chat,
-                            new_member.id,
-                            until_date=until_date,
-                            send_messages=False,
-                            send_media=False,
-                            send_stickers=False,
-                            send_gifs=False,
-                            send_games=False,
-                            use_inline_bots=False
-                        )
-                        logger.info(f"Successfully muted new member {new_member.first_name} until {until_date}")
-                        
-                        # 发送欢迎消息
-                        welcome_message = (
-                            f"欢迎 {new_member.first_name} 加入群组！\n"
-                            "为了维护群组秩序，新成员将被禁言4小时。\n"
-                            "请私聊机器人并发送每日密码以解除禁言。"
-                        )
-                        await event.reply(welcome_message)
-                        logger.info(f"Sent welcome message to {new_member.first_name}")
-                        
-                    except Exception as e:
-                        logger.error(f"Error muting new member: {str(e)}")
-                        logger.error(f"Error type: {type(e)}")
-                        logger.error(f"Error details: {str(e)}")
-                    
-                except Exception as e:
-                    logger.error(f"Error handling new member: {str(e)}")
-                    logger.error(f"Error type: {type(e)}")
-                    logger.error(f"Error details: {str(e)}")
+            self.client.add_event_handler(self.handle_new_member, events.ChatAction.NewParticipant)
             
             # 启动每日密码发送任务
             asyncio.create_task(self.start_daily_verification())
@@ -396,6 +341,63 @@ Available commands:
             except Exception as e:
                 logger.error(f"Error in daily verification task: {e}", exc_info=True)
                 await asyncio.sleep(60)  # 出错后等待1分钟再试
+
+    async def handle_new_member(self, event):
+        """Handle new member joined event"""
+        logger.info("New member handler triggered")
+        try:
+            # 获取新成员信息
+            new_member = event.new_participant
+            if not new_member:
+                logger.warning("No new member found in event")
+                return
+            
+            # 获取群组信息
+            chat = await event.get_chat()
+            logger.info(f"New member {new_member.first_name} (ID: {new_member.id}) joined group {chat.title} (ID: {chat.id})")
+            
+            # 设置禁言时间为4小时
+            until_date = datetime.now() + timedelta(hours=4)
+            logger.info(f"Setting mute until {until_date}")
+            
+            try:
+                # 获取用户权限
+                permissions = await event.client.get_permissions(chat, new_member)
+                logger.info(f"Current permissions for user: {permissions}")
+                
+                # 禁言新成员
+                logger.info(f"Attempting to mute user {new_member.first_name} (ID: {new_member.id})")
+                await event.client.edit_permissions(
+                    chat,
+                    new_member.id,
+                    until_date=until_date,
+                    send_messages=False,
+                    send_media=False,
+                    send_stickers=False,
+                    send_gifs=False,
+                    send_games=False,
+                    use_inline_bots=False
+                )
+                logger.info(f"Successfully muted new member {new_member.first_name} until {until_date}")
+                
+                # 发送欢迎消息
+                welcome_message = (
+                    f"欢迎 {new_member.first_name} 加入群组！\n"
+                    "为了维护群组秩序，新成员将被禁言4小时。\n"
+                    "请私聊机器人并发送每日密码以解除禁言。"
+                )
+                await event.reply(welcome_message)
+                logger.info(f"Sent welcome message to {new_member.first_name}")
+                
+            except Exception as e:
+                logger.error(f"Error muting new member: {str(e)}")
+                logger.error(f"Error type: {type(e)}")
+                logger.error(f"Error details: {str(e)}")
+            
+        except Exception as e:
+            logger.error(f"Error handling new member: {str(e)}")
+            logger.error(f"Error type: {type(e)}")
+            logger.error(f"Error details: {str(e)}")
 
 async def main():
     """主函数"""
