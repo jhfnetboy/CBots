@@ -1,5 +1,7 @@
 import os
 import logging
+import random
+import string
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -8,6 +10,13 @@ class BotHandlers:
     def __init__(self):
         self.muted_users = set()  # 改为集合，只记录被禁言的用户ID
         self.default_group_id = os.getenv('TELEGRAM_DEFAULT_GROUP')  # 使用环境变量中的群组ID
+        self.daily_password = self.generate_password()  # 生成每日密码
+
+    def generate_password(self):
+        """生成随机密码"""
+        # 生成8位随机字符串，包含大小写字母和数字
+        characters = string.ascii_letters + string.digits
+        return ''.join(random.choice(characters) for _ in range(8))
 
     async def send_online_message(self, client):
         """Send online message to the group"""
@@ -18,8 +27,9 @@ class BotHandlers:
                 logger.error("TELEGRAM_GROUP not found in environment variables")
                 return
                 
-            # Send online message
-            await client.send_message(group_id, "🤖 Bot is now online!")
+            # Send online message with daily password
+            message = f"🤖 Bot is now online!\n\n今日新用户解禁密码是：{self.daily_password}"
+            await client.send_message(group_id, message)
             logger.info("Online message sent successfully")
         except Exception as e:
             logger.error(f"Error sending online message: {str(e)}")
@@ -31,8 +41,9 @@ class BotHandlers:
                 logger.error("TELEGRAM_DEFAULT_GROUP not set in environment variables")
                 return
                 
-            password = os.getenv('DAILY_PASSWORD', '')
-            await client.send_message(self.default_group_id, f"今日密码：{password}")
+            # 生成新的每日密码
+            self.daily_password = self.generate_password()
+            await client.send_message(self.default_group_id, f"今日密码：{self.daily_password}")
             logger.info(f"Sent daily password to group {self.default_group_id}")
         except Exception as e:
             logger.error(f"Error sending daily password: {str(e)}")
@@ -56,6 +67,9 @@ class BotHandlers:
             
             # Handle commands
             if message_text.startswith('/'):
+                if message_text.lower() == '/pass':
+                    await event.reply(f"今日密码：{self.daily_password}")
+                    return
                 response = await command_manager.handle_command(message_text)
                 if response:
                     await event.reply(response)
@@ -98,7 +112,7 @@ class BotHandlers:
             # Check if user is muted
             if user_id in self.muted_users:
                 # Check if message is the daily password
-                if message_text == os.getenv('DAILY_PASSWORD', ''):
+                if message_text == self.daily_password:
                     # Unmute user in default group
                     await client.edit_permissions(self.default_group_id, user_id, send_messages=True)
                     logger.info(f"Unmuted user {user_id} in group {self.default_group_id}")
