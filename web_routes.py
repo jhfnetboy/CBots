@@ -40,7 +40,7 @@ def telegram():
     return render_template('telegram.html', version=VERSION)
 
 @web_bp.route('/api/send_message', methods=['POST'])
-async def send_message():
+def send_message():
     """Send message endpoint"""
     try:
         data = request.get_json()
@@ -69,28 +69,48 @@ async def send_message():
             logger.error("Telegram client not initialized")
             return jsonify({'error': 'Telegram client not initialized'}), 500
             
+        async def send_message_async():
+            try:
+                # 获取群组实体
+                logger.info(f"Attempting to get entity for community: {community_name}")
+                community = await client.get_entity(community_name)
+                logger.info(f"Found group: {community.title} (ID: {community.id})")
+                
+                # 发送消息
+                logger.info(f"Attempting to send message to topic {topic_id}")
+                logger.info(f"Message content: {message}")
+                
+                # 使用 send_message 发送消息
+                response = await client.send_message(
+                    community,
+                    message,
+                    reply_to=topic_id
+                )
+                logger.info(f"Message sent successfully! Message ID: {response.id}")
+                return {'success': True, 'message_id': response.id}
+                
+            except Exception as e:
+                logger.error(f"Error in send_message_async: {str(e)}")
+                logger.error(f"Error type: {type(e)}")
+                return {'error': str(e)}
+        
+        if main_loop is None:
+            logger.error("Main loop not set")
+            return jsonify({'error': 'Server not ready'}), 500
+            
         try:
-            # 获取群组实体
-            logger.info(f"Attempting to get entity for community: {community_name}")
-            community = await client.get_entity(community_name)
-            logger.info(f"Found group: {community.title} (ID: {community.id})")
-            
-            # 发送消息
-            logger.info(f"Attempting to send message to topic {topic_id}")
-            logger.info(f"Message content: {message}")
-            
-            # 使用 send_message 发送消息
-            response = await client.send_message(
-                community,
-                message,
-                reply_to=topic_id
-            )
-            logger.info(f"Message sent successfully! Message ID: {response.id}")
-            return jsonify({'success': True, 'message_id': response.id})
-            
+            # 使用现有的主事件循环
+            future = asyncio.run_coroutine_threadsafe(send_message_async(), main_loop)
+            response = future.result(timeout=30)  # 设置30秒超时
+            if 'error' in response:
+                logger.error(f"Error in send_message_async: {response['error']}")
+                return jsonify(response), 500
+            return jsonify(response)
+        except asyncio.TimeoutError:
+            logger.error("Timeout while sending message")
+            return jsonify({'error': 'Timeout while sending message'}), 500
         except Exception as e:
-            logger.error(f"Error sending message: {str(e)}")
-            logger.error(f"Error type: {type(e)}")
+            logger.error(f"Error executing send_message_async: {str(e)}")
             return jsonify({'error': str(e)}), 500
             
     except Exception as e:
