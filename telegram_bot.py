@@ -4,6 +4,7 @@ from telethon import TelegramClient, events
 from telethon.tl.types import Message
 from datetime import datetime, timedelta
 from command_manager import command_manager, BotType
+import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +39,13 @@ class TelegramBot:
             # 启动客户端
             await self.client.start(bot_token=self.bot_token)
             
+            # 发送启动通知
+            if self.target_group:
+                await self.client.send_message(
+                    self.target_group,
+                    "🤖 Bot is now online and ready to serve!"
+                )
+            
             # 注册命令处理器
             command_manager.register_command('start', self.handle_start, BotType.TELEGRAM)
             command_manager.register_command('help', self.handle_help, BotType.TELEGRAM)
@@ -55,6 +63,9 @@ class TelegramBot:
             
             # 设置事件处理器
             self.setup_handlers()
+            
+            # 启动每日密码发送任务
+            asyncio.create_task(self.start_daily_verification())
             
             logger.info("Telegram bot started successfully")
         except Exception as e:
@@ -311,3 +322,18 @@ Available commands:
         except Exception as e:
             logger.error(f"Error handling new user: {e}", exc_info=True)
             raise
+
+    async def start_daily_verification(self):
+        """Start the daily verification task"""
+        while True:
+            try:
+                # 等待到下一个整点
+                now = datetime.now()
+                next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+                await asyncio.sleep((next_hour - now).total_seconds())
+                
+                # 发送每日密码
+                await self.send_daily_verification()
+            except Exception as e:
+                logger.error(f"Error in daily verification task: {e}", exc_info=True)
+                await asyncio.sleep(60)  # 出错后等待1分钟再试
