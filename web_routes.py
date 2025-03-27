@@ -40,16 +40,6 @@ def send_message():
         if not chat_id:
             return jsonify({'error': f'Channel ID {channel_id} not found'}), 404
             
-        # Convert chat_id to integer and add -100 prefix
-        try:
-            numeric_id = int(chat_id)
-            if numeric_id > 0:
-                numeric_id = -100 + numeric_id
-            chat_id = str(numeric_id)
-        except ValueError:
-            logger.error(f"Invalid channel ID format: {chat_id}")
-            return jsonify({'error': 'Invalid channel ID format'}), 400
-            
         # Log the message
         logger.info(f"Sending message to channel {channel_id}: {message}")
         
@@ -59,8 +49,11 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # Send message directly
-                await client.send_message(chat_id, message)
+                # First try to get the entity
+                entity = await client.get_entity(chat_id)
+                
+                # Send message using the entity
+                await client.send_message(entity, message)
                 logger.info(f"Message sent successfully to {chat_id}")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
