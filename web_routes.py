@@ -67,8 +67,10 @@ def send_message():
                 logger.error(f"Error in send_async: {str(e)}")
                 raise
         
-        # Run the async task
-        asyncio.run(send_async())
+        # Get the current event loop
+        loop = asyncio.get_event_loop()
+        # Run the async task in the current loop
+        loop.create_task(send_async())
         
         return jsonify({'status': 'success'}), 200
     except Exception as e:
