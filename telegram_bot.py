@@ -350,17 +350,24 @@ Available commands:
             # 获取新成员信息
             new_member = event.new_participant
             if not new_member:
+                logger.warning("No new member found in event")
                 return
             
             # 获取群组信息
             chat = await event.get_chat()
-            logger.info(f"New member {new_member.first_name} joined group {chat.title}")
+            logger.info(f"New member {new_member.first_name} (ID: {new_member.id}) joined group {chat.title} (ID: {chat.id})")
             
             # 设置禁言时间为4小时
             until_date = datetime.now() + timedelta(hours=4)
+            logger.info(f"Setting mute until {until_date}")
             
             try:
+                # 获取用户权限
+                permissions = await event.client.get_permissions(chat, new_member)
+                logger.info(f"Current permissions for user: {permissions}")
+                
                 # 禁言新成员
+                logger.info(f"Attempting to mute user {new_member.first_name} (ID: {new_member.id})")
                 await event.client.edit_permissions(
                     chat,
                     new_member.id,
@@ -380,12 +387,17 @@ Available commands:
                     "请私聊机器人并发送每日密码以解除禁言。"
                 )
                 await event.reply(welcome_message)
+                logger.info(f"Sent welcome message to {new_member.first_name}")
                 
             except Exception as e:
                 logger.error(f"Error muting new member: {str(e)}")
+                logger.error(f"Error type: {type(e)}")
+                logger.error(f"Error details: {str(e)}")
             
         except Exception as e:
             logger.error(f"Error handling new member: {str(e)}")
+            logger.error(f"Error type: {type(e)}")
+            logger.error(f"Error details: {str(e)}")
 
 async def main():
     """主函数"""
