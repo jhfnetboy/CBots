@@ -68,7 +68,12 @@ def send_message():
             
         # Get community entity
         try:
-            community = client.get_entity(community_name)
+            # Create async function to get entity
+            async def get_entity():
+                return await client.get_entity(community_name)
+            
+            # Run the async function in the event loop
+            community = asyncio.run_coroutine_threadsafe(get_entity(), main_loop).result()
             logger.info(f"Successfully retrieved community: {community.title} (ID: {community.id})")
         except Exception as e:
             logger.error(f"Failed to get community entity: {str(e)}")
@@ -110,7 +115,7 @@ def send_message():
             return jsonify({'success': True, 'scheduled': True})
         else:
             # Send immediately
-            response = asyncio.run(send_async())
+            response = asyncio.run_coroutine_threadsafe(send_async(), main_loop).result()
             if 'error' in response:
                 return jsonify(response), 500
             return jsonify(response)

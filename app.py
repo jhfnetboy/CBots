@@ -9,7 +9,7 @@ from command_manager import CommandManager
 from bot_handlers import BotHandlers
 from dotenv import load_dotenv
 from web_routes import init_web_routes, set_main_loop, VERSION
-from twitter_routes import init_twitter_routes
+from twitter_routes import init_twitter_routes, set_main_loop as set_twitter_main_loop
 
 # Load environment variables
 load_dotenv()
@@ -65,11 +65,12 @@ def setup_handlers(client):
         logger.info(f"Received message: {event.message.text} from {event.sender_id} in chat {event.chat_id}")
         await bot_handlers.handle_message(event, command_manager)
 
-    @client.on(events.NewMessage(func=lambda e: e.message and e.message.action and isinstance(e.message.action, MessageActionChatAddUser)))
+    @client.on(events.ChatAction)
     async def handle_new_member(event):
         # Log chat actions
-        logger.info(f"New member joined: {event.message.action.users[0]} in chat {event.chat_id}")
-        await bot_handlers.handle_new_member(event, client)
+        if event.user_joined:
+            logger.info(f"New member joined: {event.user_id} in chat {event.chat_id}")
+            await bot_handlers.handle_new_member(event, client)
 
     @client.on(events.NewMessage(func=lambda e: e.is_private))
     async def handle_private_message(event):
@@ -89,8 +90,7 @@ def run_flask(client):
     
     # Set the main event loop for both web and twitter routes
     set_main_loop(loop)
-    web_routes.set_main_loop(loop)
-    twitter_routes.set_main_loop(loop)
+    set_twitter_main_loop(loop)
     
     app.run(host='0.0.0.0', port=PORT)
 

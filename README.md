@@ -324,8 +324,12 @@ Available commands:
 6. at bot消息回复：自动回复Hi username，I get your message：原内容
 /hi，回复：Hi， my friends，this is COS72 Bot。
 
+每次中文沟通
+每次不要扩散修改范围，只针对问题
+每次都不要擅自优化和扩张功能范围
 每次修改后请运行app.py
 每次更新，记得更新version，例如0.23.0 -——-》 0.23.1，递增0.1
+每次记得输出更改了那几个文件，会可能影响那些功能
 
 频道输入的处理方式：
 从 Account_Abstraction_Community/2817 格式中提取社区名称和话题 ID
