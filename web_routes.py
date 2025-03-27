@@ -6,6 +6,7 @@ import os
 import threading
 from telethon.utils import get_peer_id
 from telethon.tl.types import PeerChannel, InputPeerChannel
+from telethon.errors import ChannelPrivateError
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -47,42 +48,26 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # For channel IDs, we need to extract the actual channel ID part
-                # from the -100 prefixed version
-                if str(channel_id).startswith('-100'):
-                    # Extract the actual channel ID by removing the -100 prefix
-                    raw_channel_id = int(str(channel_id)[4:])
-                else:
-                    # If no prefix, just use as is
-                    raw_channel_id = int(channel_id)
-                
-                logger.info(f"Using raw channel ID: {raw_channel_id}")
-                
-                # Direct approach - use the channel ID directly
+                # First try to get the entity
                 try:
-                    # First attempt: Use raw_channel_id directly
-                    await client.send_message(channel_id, message)
-                    logger.info(f"Message sent successfully to {channel_id}")
+                    # Try to get entity using the full channel ID
+                    entity = await client.get_entity(channel_id)
+                    logger.info(f"Successfully got entity for channel {channel_id}")
                 except Exception as e:
-                    logger.error(f"First attempt failed: {str(e)}")
-                    
-                    # Second attempt: Try with PeerChannel
+                    logger.error(f"Failed to get entity with full ID: {str(e)}")
                     try:
-                        peer = PeerChannel(channel_id=raw_channel_id)
-                        await client.send_message(peer, message)
-                        logger.info(f"Message sent successfully using PeerChannel to {raw_channel_id}")
+                        # Try to get entity using the channel username
+                        entity = await client.get_entity('@Account_Abstraction_Community')
+                        logger.info(f"Successfully got entity using username")
                     except Exception as e2:
-                        logger.error(f"Second attempt failed: {str(e2)}")
-                        
-                        # Third attempt: Try with -100 prefix as integer
-                        try:
-                            await client.send_message(int(f"-100{raw_channel_id}"), message)
-                            logger.info(f"Message sent successfully using -100 prefix to {raw_channel_id}")
-                        except Exception as e3:
-                            logger.error(f"Third attempt failed: {str(e3)}")
-                            raise
+                        logger.error(f"Failed to get entity with username: {str(e2)}")
+                        raise
                 
-                # Handle scheduled message if needed (if we get here, one of the attempts succeeded)
+                # Send message using the entity
+                await client.send_message(entity, message)
+                logger.info(f"Message sent successfully to {channel_id}")
+                
+                # Handle scheduled message if needed
                 if scheduled_time:
                     scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
                     now = datetime.now()
@@ -91,16 +76,7 @@ def send_message():
                     if delay > 0:
                         logger.info(f"Message scheduled for {scheduled_datetime}")
                         await asyncio.sleep(delay)
-                        # Try the same approaches for scheduled message
-                        try:
-                            await client.send_message(channel_id, f"[Scheduled Message] {message}")
-                        except:
-                            try:
-                                peer = PeerChannel(channel_id=raw_channel_id)
-                                await client.send_message(peer, f"[Scheduled Message] {message}")
-                            except:
-                                await client.send_message(int(f"-100{raw_channel_id}"), f"[Scheduled Message] {message}")
-                        
+                        await client.send_message(entity, f"[Scheduled Message] {message}")
                         logger.info(f"Scheduled message sent to channel")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
