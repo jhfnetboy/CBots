@@ -8,7 +8,7 @@ from telethon import TelegramClient, events
 from command_manager import CommandManager
 from bot_handlers import BotHandlers
 from dotenv import load_dotenv
-from web_routes import init_web_routes, set_main_loop
+from web_routes import init_web_routes, set_main_loop, VERSION
 
 # Load environment variables
 load_dotenv()
@@ -30,16 +30,18 @@ app = Flask(__name__)
 # Configuration
 PORT = int(os.getenv('PORT', 8872))
 
+# Telegram API credentials
+API_ID = os.getenv('TELEGRAM_API_ID')
+API_HASH = os.getenv('TELEGRAM_API_HASH')
+BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+
 def create_client():
     """Create and return a new TelegramClient instance"""
-    api_id = os.getenv('TELEGRAM_API_ID')
-    api_hash = os.getenv('TELEGRAM_API_HASH')
-    return TelegramClient('bot', api_id, api_hash)
+    return TelegramClient('bot_session', API_ID, API_HASH)
 
 async def init_client(client):
     """Initialize the client with bot token"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    await client.start(bot_token=bot_token)
+    await client.start(bot_token=BOT_TOKEN)
     return client
 
 async def schedule_tasks(client):
@@ -113,5 +115,8 @@ async def main():
         scheduler_task.cancel()
 
 if __name__ == '__main__':
+    # Print version at startup
+    print(f"\n=== Telegram Bot v{VERSION} ===\n")
+    
     # Run the main function
     asyncio.run(main()) 
