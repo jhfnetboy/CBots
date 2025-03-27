@@ -41,8 +41,16 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # Try to get the entity using the full channel link
-                entity = await client.get_input_entity(chat_id)
+                # Convert chat_id to integer if it's numeric
+                try:
+                    numeric_id = int(chat_id)
+                    # Add -100 prefix for channels
+                    if numeric_id > 0:
+                        numeric_id = -100 + numeric_id
+                    entity = await client.get_entity(numeric_id)
+                except ValueError:
+                    # If not numeric, try to get entity directly
+                    entity = await client.get_entity(chat_id)
                 
                 if scheduled_time:
                     scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
