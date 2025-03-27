@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 import threading
 from telethon.utils import get_peer_id
-from telethon.tl.types import PeerChannel
+from telethon.tl.types import PeerChannel, InputPeerChannel
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -47,27 +47,42 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # Ensure the channel ID is a properly formatted Telegram channel ID
-                # Channel IDs for large channels/groups should start with -100
-                str_channel_id = str(channel_id)
-                if not str_channel_id.startswith('-100'):
-                    # If it doesn't start with -100, add it
-                    if str_channel_id.startswith('-'):
-                        str_channel_id = '-100' + str_channel_id[1:]
-                    else:
-                        str_channel_id = '-100' + str_channel_id
+                # For channel IDs, we need to extract the actual channel ID part
+                # from the -100 prefixed version
+                if str(channel_id).startswith('-100'):
+                    # Extract the actual channel ID by removing the -100 prefix
+                    raw_channel_id = int(str(channel_id)[4:])
+                else:
+                    # If no prefix, just use as is
+                    raw_channel_id = int(channel_id)
                 
-                # Convert to integer for Telethon
-                numeric_channel_id = int(str_channel_id)
+                logger.info(f"Using raw channel ID: {raw_channel_id}")
                 
-                # Create a proper peer channel object
-                peer = PeerChannel(channel_id=numeric_channel_id)
+                # Direct approach - use the channel ID directly
+                try:
+                    # First attempt: Use raw_channel_id directly
+                    await client.send_message(channel_id, message)
+                    logger.info(f"Message sent successfully to {channel_id}")
+                except Exception as e:
+                    logger.error(f"First attempt failed: {str(e)}")
+                    
+                    # Second attempt: Try with PeerChannel
+                    try:
+                        peer = PeerChannel(channel_id=raw_channel_id)
+                        await client.send_message(peer, message)
+                        logger.info(f"Message sent successfully using PeerChannel to {raw_channel_id}")
+                    except Exception as e2:
+                        logger.error(f"Second attempt failed: {str(e2)}")
+                        
+                        # Third attempt: Try with -100 prefix as integer
+                        try:
+                            await client.send_message(int(f"-100{raw_channel_id}"), message)
+                            logger.info(f"Message sent successfully using -100 prefix to {raw_channel_id}")
+                        except Exception as e3:
+                            logger.error(f"Third attempt failed: {str(e3)}")
+                            raise
                 
-                # Send message using the peer
-                await client.send_message(peer, message)
-                logger.info(f"Message sent successfully to {numeric_channel_id}")
-                
-                # Handle scheduled message if needed
+                # Handle scheduled message if needed (if we get here, one of the attempts succeeded)
                 if scheduled_time:
                     scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
                     now = datetime.now()
@@ -76,8 +91,17 @@ def send_message():
                     if delay > 0:
                         logger.info(f"Message scheduled for {scheduled_datetime}")
                         await asyncio.sleep(delay)
-                        await client.send_message(peer, f"[Scheduled Message] {message}")
-                        logger.info(f"Scheduled message sent to {numeric_channel_id}")
+                        # Try the same approaches for scheduled message
+                        try:
+                            await client.send_message(channel_id, f"[Scheduled Message] {message}")
+                        except:
+                            try:
+                                peer = PeerChannel(channel_id=raw_channel_id)
+                                await client.send_message(peer, f"[Scheduled Message] {message}")
+                            except:
+                                await client.send_message(int(f"-100{raw_channel_id}"), f"[Scheduled Message] {message}")
+                        
+                        logger.info(f"Scheduled message sent to channel")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
                 raise
