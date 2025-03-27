@@ -3,7 +3,6 @@ import logging
 import asyncio
 from datetime import datetime
 import os
-import threading
 from telethon.utils import get_peer_id
 from telethon.tl.types import PeerChannel, InputPeerChannel
 from telethon.errors import ChannelPrivateError
@@ -18,7 +17,7 @@ web_bp = Blueprint('web', __name__)
 main_loop = None
 
 # Version
-VERSION = "0.23.10"
+VERSION = "0.23.11"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -36,7 +35,7 @@ def send_message():
     try:
         data = request.get_json()
         message = data.get('message')
-        channel_input = data.get('channel_id')  # 格式: Account_Abstraction_Community/18472
+        channel_input = data.get('channel_id')  # 格式: Account_Abstraction_Community/2817
         scheduled_time = data.get('scheduled_time')
         
         logger.info(f"Received request - Message: {message}, Channel: {channel_input}")
@@ -46,24 +45,21 @@ def send_message():
             
         # 处理频道ID
         try:
-            # 从 Account_Abstraction_Community/18472 格式中提取数字
+            # 从 Account_Abstraction_Community/2817 格式中提取用户名
             parts = str(channel_input).split('/')
             logger.info(f"Split channel input into parts: {parts}")
             
             if len(parts) < 2:
                 raise ValueError("Invalid format")
-            channel_number = parts[-1].strip()
-            logger.info(f"Extracted channel number: {channel_number}")
+            channel_username = parts[0].strip()
+            logger.info(f"Extracted channel username: {channel_username}")
             
-            # 使用 get_peer_id 获取正确的频道ID
-            channel_id = get_peer_id(PeerChannel(int(channel_number)))
-            logger.info(f"Using channel ID: {channel_id}")
         except (IndexError, ValueError) as e:
-            logger.error(f"Failed to extract channel ID: {str(e)}")
+            logger.error(f"Failed to extract channel username: {str(e)}")
             return jsonify({'error': 'Invalid channel input format. Please use format: Account_Abstraction_Community/18472'}), 400
             
         # Log the message
-        logger.info(f"Sending message to channel {channel_id}: {message}")
+        logger.info(f"Sending message to channel {channel_username}: {message}")
         
         # Get client from app context
         client = web_bp.client
@@ -71,13 +67,13 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # 使用频道ID获取实体
-                entity = await client.get_entity(channel_id)
-                logger.info(f"Successfully got entity for channel {channel_id}")
+                # 使用用户名获取实体
+                entity = await client.get_entity(channel_username)
+                logger.info(f"Successfully got entity for channel {channel_username} (ID: {entity.id})")
                 
                 # Send message using the entity
                 await client.send_message(entity, message)
-                logger.info(f"Message sent successfully to {channel_id}")
+                logger.info(f"Message sent successfully to {channel_username}")
                 
                 # Handle scheduled message if needed
                 if scheduled_time:

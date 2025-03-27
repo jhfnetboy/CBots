@@ -1,7 +1,8 @@
 import asyncio
 import os
 from telethon import TelegramClient
-from telethon.tl.types import InputPeerChannel, PeerChannel
+from telethon.tl.types import InputPeerChannel, PeerChannel, InputChannel
+from telethon.utils import get_peer_id, resolve_id
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -21,43 +22,42 @@ async def test_channel_entity():
         await client.start(bot_token=BOT_TOKEN)
         print("Client started successfully")
         
-        # Test channel ID
-        channel_id = 2817  # 从 Account_Abstraction_Community/2817 提取的数字
+        # Test channel input
+        community = "Account_Abstraction_Community"
+        channel_id = 2817
         
-        # 方法1: 使用 InputPeerChannel
-        print("\nMethod 1: Using InputPeerChannel")
+        # 方法1: 使用社区名称获取社区实体
+        print("\nMethod 1: Get community entity")
         try:
-            entity = await client.get_entity(InputPeerChannel(channel_id, 0))
-            print(f"Success with InputPeerChannel: {entity}")
-        except Exception as e:
-            print(f"Failed with InputPeerChannel: {str(e)}")
+            community_entity = await client.get_entity(community)
+            print(f"Community entity: {community_entity}")
+            print(f"Community ID: {community_entity.id}")
+            print(f"Community Access Hash: {community_entity.access_hash}")
             
-        # 方法2: 使用 PeerChannel
-        print("\nMethod 2: Using PeerChannel")
-        try:
-            entity = await client.get_entity(PeerChannel(channel_id))
-            print(f"Success with PeerChannel: {entity}")
-        except Exception as e:
-            print(f"Failed with PeerChannel: {str(e)}")
+            # 尝试不同的频道 ID 组合
+            combinations = [
+                (f"{community_entity.id}/{channel_id}", "Community ID/Channel ID"),
+                (f"-100{channel_id}", "-100 + Channel ID"),
+                (f"{community_entity.id}_{channel_id}", "Community ID_Channel ID"),
+                (channel_id, "Raw Channel ID"),
+                (f"{community}/{channel_id}", "Community Name/Channel ID")
+            ]
             
-        # 方法3: 使用 -100 前缀
-        print("\nMethod 3: Using -100 prefix")
-        try:
-            entity = await client.get_entity(-1002817)
-            print(f"Success with -100 prefix: {entity}")
-        except Exception as e:
-            print(f"Failed with -100 prefix: {str(e)}")
+            for channel_input, desc in combinations:
+                print(f"\nTrying {desc}: {channel_input}")
+                try:
+                    entity = await client.get_entity(channel_input)
+                    print(f"Success! Entity: {entity}")
+                    
+                    # 尝试发送测试消息
+                    message = await client.send_message(entity, f"Test message to {desc}")
+                    print(f"Message sent successfully: {message}")
+                    break
+                except Exception as e:
+                    print(f"Failed: {str(e)}")
             
-        # 方法4: 使用 get_peer_id
-        print("\nMethod 4: Using get_peer_id")
-        try:
-            from telethon.utils import get_peer_id
-            peer_id = get_peer_id(PeerChannel(channel_id))
-            print(f"Peer ID: {peer_id}")
-            entity = await client.get_entity(peer_id)
-            print(f"Success with get_peer_id: {entity}")
         except Exception as e:
-            print(f"Failed with get_peer_id: {str(e)}")
+            print(f"Failed with community: {str(e)}")
             
     except Exception as e:
         print(f"Error: {str(e)}")
