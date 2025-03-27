@@ -39,6 +39,13 @@ def send_message():
         if not message or not channel_input:
             return jsonify({'error': 'Missing message or channel input'}), 400
             
+        # 从输入中提取频道ID
+        try:
+            channel_number = channel_input.split('/')[-1]
+            channel_id = int(channel_number)
+        except (IndexError, ValueError):
+            return jsonify({'error': 'Invalid channel input format. Expected format: Account_Abstraction_Community/2817'}), 400
+            
         # Log the message
         logger.info(f"Sending message to channel {channel_input}: {message}")
         
@@ -50,20 +57,18 @@ def send_message():
             try:
                 # First try to get the entity
                 try:
-                    # 构建完整的频道用户名
-                    channel_username = f"@{channel_input}"
-                    entity = await client.get_entity(channel_username)
-                    logger.info(f"Successfully got entity for channel {channel_username}")
+                    # 尝试使用带-100前缀的频道ID
+                    full_channel_id = int(f"-100{channel_id}")
+                    entity = await client.get_entity(full_channel_id)
+                    logger.info(f"Successfully got entity for channel {full_channel_id}")
                 except Exception as e:
-                    logger.error(f"Failed to get entity with username: {str(e)}")
+                    logger.error(f"Failed to get entity with full ID: {str(e)}")
                     try:
-                        # 尝试使用频道ID
-                        channel_number = channel_input.split('/')[-1]
-                        channel_id = int(f"-100{channel_number}")
+                        # 尝试使用原始频道ID
                         entity = await client.get_entity(channel_id)
-                        logger.info(f"Successfully got entity using channel ID {channel_id}")
+                        logger.info(f"Successfully got entity using original channel ID {channel_id}")
                     except Exception as e2:
-                        logger.error(f"Failed to get entity with channel ID: {str(e2)}")
+                        logger.error(f"Failed to get entity with original ID: {str(e2)}")
                         raise
                 
                 # Send message using the entity
