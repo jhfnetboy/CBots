@@ -200,6 +200,30 @@ command_manager.py: 统一管理所有机器人的命令和消息处理
 
 kill -9 id
 
+代码重构：
+创建了 BotHandlers 类来管理所有机器人功能
+将功能代码和系统代码分离
+主要功能现在在 bot_handlers.py 中：
+消息处理
+用户管理
+密码验证
+禁言/解禁逻辑
+改进的系统架构：
+app.py 现在专注于：
+系统配置
+事件循环管理
+进程和线程管理
+路由设置
+客户端初始化
+更容易维护和修改功能
+更清晰的责任分离
+更好的代码组织
+其他改进：
+更好的错误处理
+更清晰的日志记录
+更模块化的代码结构
+更容易测试和扩展
+
 
 ## 部署
 
@@ -267,3 +291,32 @@ https://cbots.netlify.app/telegram - Telegram 页面
 https://cbots.netlify.app/twitter - Twitter 页面
 https://cbots.netlify.app/api/* - API 端点
 https://cbots.netlify.app/webhook - Telegram webhook
+
+### tele消息处理机制
+消息处理机制再次确认：
+
+1.目前非at和非/hi等命令之外消息只在一个函数进行命令行log，不做其他处理
+2. /hi等命令有专门的函数处理，每个命令一个函数，是独立函数
+3. at bot的消息独立处理，目前只有一个过滤函数：当消息包含每日密码，则解禁该用户发言
+
+#### Tele的命令
+Available commands:
+/start - Start the bot
+/help - Show this help message
+/hi - Say hello
+/content - Content management
+/price - Price information
+/event - Event management
+/task - Task management
+/news - News updates
+/PNTs - PNTs information
+/account - Account management
+
+#### 关于新用户
+1. 新用户指新加入群组的telegram用户
+2. 默认新用户会自动被设置24小时禁言，针对所有群组有效
+3. bot会上线后自动发送每日密码（一串随机字符串，每日更新）到群内
+4. /pass命令 bot会再次发送每日密码到群内
+5. 新用户只有私聊bot，发送每日密码给bot，bot过滤得到符合每日密码后解禁该用户的发言；从此后此用户就不是新用户，而是老用户，自由发言了
+
+每次修改后请运行app.py

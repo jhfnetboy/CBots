@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 class BotHandlers:
     def __init__(self):
-        self.muted_users = {}
+        self.muted_users = set()  # 改为集合，只记录被禁言的用户ID
         self.default_group_id = int(os.getenv('DEFAULT_GROUP_ID', 1))
 
     async def send_online_message(self, client):
@@ -30,22 +30,29 @@ class BotHandlers:
     async def handle_message(self, event, command_manager):
         """Handle new messages"""
         try:
+            message_text = event.message.text
+            user_id = event.sender_id
+            
             # Log the message
-            logger.info(f"Received message from {event.sender_id}: {event.message.text}")
+            logger.info(f"Received message from {user_id}: {message_text}")
             
             # Check if user is muted
-            if event.sender_id in self.muted_users:
+            if user_id in self.muted_users:
                 await event.reply("您当前处于禁言状态，请私聊机器人发送每日密码以解除禁言。")
                 return
             
-            # Get response from command manager
-            response = await command_manager.handle_message(event.message.text)
+            # Handle commands
+            if message_text.startswith('/'):
+                response = await command_manager.handle_command(message_text)
+                if response:
+                    await event.reply(response)
+                return
             
-            # Send response back to user
-            await event.reply(response)
+            # For other messages, just log them
+            command_manager.log_message(message_text)
+            
         except Exception as e:
             logger.error(f"Error handling message: {str(e)}")
-            await event.reply("Sorry, there was an error processing your message.")
 
     async def handle_new_member(self, event, client):
         """Handle new member joins"""
@@ -56,8 +63,8 @@ class BotHandlers:
                 await client.edit_permissions(self.default_group_id, user_id, send_messages=False)
                 logger.info(f"Muted user {user_id} in group {self.default_group_id}")
                 
-                # Store unmute time (24 hours from now)
-                self.muted_users[user_id] = datetime.now() + timedelta(hours=24)
+                # Add user to muted users set
+                self.muted_users.add(user_id)
                 
                 # Send welcome message
                 await event.reply(f"欢迎新成员！请在24小时内私聊机器人发送每日密码以解除禁言。")
@@ -78,10 +85,10 @@ class BotHandlers:
                     await client.edit_permissions(self.default_group_id, user_id, send_messages=True)
                     logger.info(f"Unmuted user {user_id} in group {self.default_group_id}")
                     
-                    # Update unmute time to 1 hour from now
-                    self.muted_users[user_id] = datetime.now() + timedelta(hours=1)
+                    # Remove user from muted users set
+                    self.muted_users.remove(user_id)
                     
-                    await event.reply("密码正确！您的禁言将在1小时后解除。")
+                    await event.reply("密码正确！您的禁言已解除。")
                 else:
                     await event.reply("密码错误，请重试。")
         except Exception as e:
@@ -93,7 +100,7 @@ class BotHandlers:
             if datetime.now() >= unmute_time:
                 try:
                     await client.edit_permissions(self.default_group_id, user_id, send_messages=True)
-                    del self.muted_users[user_id]
+                    self.muted_users.remove(user_id)
                     logger.info(f"Unmuted user {user_id}")
                 except Exception as e:
                     logger.error(f"Error unmuting user {user_id}: {str(e)}") 

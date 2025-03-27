@@ -1,4 +1,6 @@
 import logging
+import os
+from datetime import datetime
 from enum import Enum
 from typing import Dict, Callable, Any, Set
 
@@ -22,6 +24,7 @@ class CommandManager:
         self.message_handlers: Dict[BotType, Callable] = {}
         self.processed_messages: Set[str] = set()  # 用于跟踪已处理的消息
         logger.info("Command Manager initialized")
+        self.daily_password = os.getenv('DAILY_PASSWORD', '')
 
     def register_command(self, command: str, handler: Callable, bot_type: BotType):
         """Register a command handler"""
@@ -96,6 +99,88 @@ class CommandManager:
             logger.info("Message processed successfully")
         except Exception as e:
             logger.error(f"Error processing message: {e}", exc_info=True)
+
+    async def handle_command(self, message):
+        """Handle command messages"""
+        command = message.split()[0].lower()
+        
+        command_handlers = {
+            '/start': self.handle_start,
+            '/help': self.handle_help,
+            '/hi': self.handle_hi,
+            '/content': self.handle_content,
+            '/price': self.handle_price,
+            '/event': self.handle_event,
+            '/task': self.handle_task,
+            '/news': self.handle_news,
+            '/pnts': self.handle_pnts,
+            '/account': self.handle_account,
+            '/pass': self.handle_pass
+        }
+        
+        if command in command_handlers:
+            return await command_handlers[command]()
+        return None
+
+    async def handle_start(self):
+        """Handle /start command"""
+        return "Welcome to COS72 Bot! Use /help to see available commands."
+
+    async def handle_help(self):
+        """Handle /help command"""
+        help_text = """Available commands:
+/start - Start the bot
+/help - Show this help message
+/hi - Say hello
+/content - Content management
+/price - Price information
+/event - Event management
+/task - Task management
+/news - News updates
+/PNTs - PNTs information
+/account - Account management
+/pass - Get daily password"""
+        return help_text
+
+    async def handle_hi(self):
+        """Handle /hi command"""
+        return "Hi! How can I help you?"
+
+    async def handle_content(self):
+        """Handle /content command"""
+        return "Content management feature coming soon."
+
+    async def handle_price(self):
+        """Handle /price command"""
+        return "Price information feature coming soon."
+
+    async def handle_event(self):
+        """Handle /event command"""
+        return "Event management feature coming soon."
+
+    async def handle_task(self):
+        """Handle /task command"""
+        return "Task management feature coming soon."
+
+    async def handle_news(self):
+        """Handle /news command"""
+        return "News updates feature coming soon."
+
+    async def handle_pnts(self):
+        """Handle /PNTs command"""
+        return "PNTs information feature coming soon."
+
+    async def handle_account(self):
+        """Handle /account command"""
+        return "Account management feature coming soon."
+
+    async def handle_pass(self):
+        """Handle /pass command"""
+        return f"今日密码：{self.daily_password}"
+
+    def log_message(self, message):
+        """Log non-command messages"""
+        logger.info(f"Received message: {message}")
 
 # Create a global instance
 command_manager = CommandManager() 
