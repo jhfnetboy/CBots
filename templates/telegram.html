@@ -57,9 +57,18 @@
                 <form id="messageForm">
                     <div class="mb-3">
                         <label for="channelSelect" class="form-label">Select Channel</label>
-                        <select class="form-select" id="channelSelect" required>
-                            <option value="">Loading channels...</option>
+                        <select class="form-select" id="channelSelect">
+                            <option value="">Select a predefined channel or custom</option>
+                            <option value="channel1">Channel 1</option>
+                            <option value="channel2">Channel 2</option>
+                            <option value="channel3">Channel 3</option>
+                            <option value="custom">Custom Channel ID</option>
                         </select>
+                    </div>
+                    
+                    <div class="mb-3" id="customChannelDiv" style="display:none;">
+                        <label for="customChannelId" class="form-label">Custom Channel ID (will add -100 prefix)</label>
+                        <input type="text" class="form-control" id="customChannelId" placeholder="Enter numeric channel ID">
                     </div>
                     
                     <div class="mb-3">
@@ -78,36 +87,53 @@
         </div>
     </div>
 
-    <div class="version">v0.22.2</div>
+    <div class="version">v0.23.0</div>
 
     <script>
-        // Load channels from environment variables
-        const channels = [
-            { id: 'TELEGRAM_CHANNEL1', name: 'Channel 1' },
-            { id: 'TELEGRAM_CHANNEL2', name: 'Channel 2' },
-            { id: 'TELEGRAM_CHANNEL3', name: 'Channel 3' }
-        ];
-
-        // Populate select dropdown
-        const channelSelect = document.getElementById('channelSelect');
-        channelSelect.innerHTML = '<option value="">Select a channel</option>';
-        channels.forEach(channel => {
-            const option = document.createElement('option');
-            option.value = channel.id;
-            option.textContent = channel.name;
-            channelSelect.appendChild(option);
+        // Handle channel select change
+        document.getElementById('channelSelect').addEventListener('change', function() {
+            const customDiv = document.getElementById('customChannelDiv');
+            if (this.value === 'custom') {
+                customDiv.style.display = 'block';
+            } else {
+                customDiv.style.display = 'none';
+            }
         });
 
         // Handle form submission
         document.getElementById('messageForm').onsubmit = async (e) => {
             e.preventDefault();
             
-            const channelId = document.getElementById('channelSelect').value;
+            const channelSelect = document.getElementById('channelSelect').value;
+            const customChannelId = document.getElementById('customChannelId').value;
             const message = document.getElementById('message').value;
             const scheduledTime = document.getElementById('scheduledTime').value;
             
-            if (!channelId || !message) {
-                alert('Please select a channel and enter a message');
+            let channelId;
+            
+            if (channelSelect === 'custom') {
+                if (!customChannelId || isNaN(parseInt(customChannelId))) {
+                    alert('Please enter a valid numeric channel ID');
+                    return;
+                }
+                // Use custom channel ID with -100 prefix
+                channelId = -100 + parseInt(customChannelId);
+            } else if (channelSelect) {
+                // Use predefined channels
+                if (channelSelect === 'channel1') {
+                    channelId = -1001;
+                } else if (channelSelect === 'channel2') {
+                    channelId = -10018472;
+                } else if (channelSelect === 'channel3') {
+                    channelId = -1002817;
+                }
+            } else {
+                alert('Please select a channel');
+                return;
+            }
+            
+            if (!message) {
+                alert('Please enter a message');
                 return;
             }
             

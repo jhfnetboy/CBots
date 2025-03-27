@@ -31,14 +31,10 @@ def send_message():
         data = request.get_json()
         message = data.get('message')
         channel_id = data.get('channel_id')
+        scheduled_time = data.get('scheduled_time')
         
-        if not message or not channel_id:
+        if not message or channel_id is None:
             return jsonify({'error': 'Missing message or channel_id'}), 400
-        
-        # Get actual chat ID from environment variable
-        chat_id = os.getenv(channel_id)
-        if not chat_id:
-            return jsonify({'error': f'Channel ID {channel_id} not found'}), 404
             
         # Log the message
         logger.info(f"Sending message to channel {channel_id}: {message}")
@@ -49,9 +45,21 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # Send message directly using the channel ID
-                await client.send_message(chat_id, message)
-                logger.info(f"Message sent successfully to {chat_id}")
+                # Use channel_id directly (it's already a numeric ID with -100 prefix)
+                await client.send_message(channel_id, message)
+                logger.info(f"Message sent successfully to {channel_id}")
+                
+                # Handle scheduled message if needed
+                if scheduled_time:
+                    scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
+                    now = datetime.now()
+                    delay = (scheduled_datetime - now).total_seconds()
+                    
+                    if delay > 0:
+                        logger.info(f"Message scheduled for {scheduled_datetime}")
+                        await asyncio.sleep(delay)
+                        await client.send_message(channel_id, f"[Scheduled Message] {message}")
+                        logger.info(f"Scheduled message sent to {channel_id}")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
                 raise
