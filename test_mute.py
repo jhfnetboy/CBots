@@ -129,12 +129,12 @@ async def main():
         mute_result = await test_mute_user(client, TEST_USERNAME)
         if mute_result:
             logger.info("Mute test passed")
+            # 保持连接一段时间以验证禁言效果
+            logger.info("保持连接30秒以验证禁言效果...")
+            await asyncio.sleep(30)
         else:
             logger.error("Mute test failed")
             
-        # 等待5秒
-        await asyncio.sleep(5)
-        
         # 测试解除禁言
         unmute_result = await test_unmute_user(client, TEST_USERNAME)
         if unmute_result:
