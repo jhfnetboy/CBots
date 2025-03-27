@@ -48,24 +48,18 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # First try to get the entity
-                try:
-                    # Try to get entity using the full channel ID
-                    entity = await client.get_entity(channel_id)
-                    logger.info(f"Successfully got entity for channel {channel_id}")
-                except Exception as e:
-                    logger.error(f"Failed to get entity with full ID: {str(e)}")
-                    try:
-                        # Try to get entity using the channel username
-                        entity = await client.get_entity('@Account_Abstraction_Community')
-                        logger.info(f"Successfully got entity using username")
-                    except Exception as e2:
-                        logger.error(f"Failed to get entity with username: {str(e2)}")
-                        raise
+                # Convert channel_id to integer if it's a string
+                if isinstance(channel_id, str):
+                    channel_id_int = int(channel_id)
+                else:
+                    channel_id_int = channel_id
                 
-                # Send message using the entity
-                await client.send_message(entity, message)
-                logger.info(f"Message sent successfully to {channel_id}")
+                # Create PeerChannel object
+                peer = PeerChannel(channel_id=channel_id_int)
+                
+                # Send message using the peer
+                await client.send_message(peer, message)
+                logger.info(f"Message sent successfully to channel {channel_id}")
                 
                 # Handle scheduled message if needed
                 if scheduled_time:
@@ -76,7 +70,7 @@ def send_message():
                     if delay > 0:
                         logger.info(f"Message scheduled for {scheduled_datetime}")
                         await asyncio.sleep(delay)
-                        await client.send_message(entity, f"[Scheduled Message] {message}")
+                        await client.send_message(peer, f"[Scheduled Message] {message}")
                         logger.info(f"Scheduled message sent to channel")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
