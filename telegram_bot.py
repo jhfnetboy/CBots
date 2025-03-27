@@ -98,7 +98,8 @@ class TelegramBot:
                             send_media=False,
                             send_stickers=False,
                             send_gifs=False,
-                            send_games=False
+                            send_games=False,
+                            use_inline_bots=False
                         )
                         logger.info(f"Successfully muted new member {new_member.first_name} until {until_date}")
                         

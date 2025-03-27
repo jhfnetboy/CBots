@@ -69,12 +69,22 @@ def send_message():
             logger.error("Telegram client not initialized")
             return jsonify({'error': 'Telegram client not initialized'}), 500
             
-        async def send_message_async():
+        async def send_async():
             try:
                 # 获取群组实体
                 logger.info(f"Attempting to get entity for community: {community_name}")
                 community = await client.get_entity(community_name)
                 logger.info(f"Found group: {community.title} (ID: {community.id})")
+                
+                if scheduled_time:
+                    # Convert scheduled_time to datetime
+                    schedule_dt = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
+                    # Wait until scheduled time
+                    now = datetime.utcnow()
+                    if schedule_dt > now:
+                        delay = (schedule_dt - now).total_seconds()
+                        logger.info(f"Scheduling message for {schedule_dt} (delay: {delay}s)")
+                        await asyncio.sleep(delay)
                 
                 # 发送消息
                 logger.info(f"Attempting to send message to topic {topic_id}")
@@ -90,28 +100,31 @@ def send_message():
                 return {'success': True, 'message_id': response.id}
                 
             except Exception as e:
-                logger.error(f"Error in send_message_async: {str(e)}")
+                logger.error(f"Error in send_async: {str(e)}")
                 logger.error(f"Error type: {type(e)}")
                 return {'error': str(e)}
         
-        if main_loop is None:
-            logger.error("Main loop not set")
-            return jsonify({'error': 'Server not ready'}), 500
-            
-        try:
-            # 使用现有的主事件循环
-            future = asyncio.run_coroutine_threadsafe(send_message_async(), main_loop)
-            response = future.result(timeout=30)  # 设置30秒超时
-            if 'error' in response:
-                logger.error(f"Error in send_message_async: {response['error']}")
-                return jsonify(response), 500
-            return jsonify(response)
-        except asyncio.TimeoutError:
-            logger.error("Timeout while sending message")
-            return jsonify({'error': 'Timeout while sending message'}), 500
-        except Exception as e:
-            logger.error(f"Error executing send_message_async: {str(e)}")
-            return jsonify({'error': str(e)}), 500
+        if scheduled_time:
+            if main_loop is None:
+                logger.error("Main loop not set for scheduled messages")
+                return jsonify({'error': 'Server not ready for scheduled messages'}), 500
+                
+            # Schedule the message
+            future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
+            logger.info("Message scheduled successfully")
+            return jsonify({'success': True, 'scheduled': True})
+        else:
+            # Send immediately
+            logger.info("Attempting to send message immediately")
+            try:
+                response = asyncio.run(send_async())
+                if 'error' in response:
+                    logger.error(f"Error in send_async: {response['error']}")
+                    return jsonify(response), 500
+                return jsonify(response)
+            except Exception as e:
+                logger.error(f"Error executing send_async: {str(e)}")
+                return jsonify({'error': str(e)}), 500
             
     except Exception as e:
         logger.error(f"Error in send_message: {str(e)}")
