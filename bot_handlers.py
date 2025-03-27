@@ -10,15 +10,17 @@ class BotHandlers:
         self.default_group_id = os.getenv('TELEGRAM_DEFAULT_GROUP')  # 使用环境变量中的群组ID
 
     async def send_online_message(self, client):
-        """Send online message to default group"""
+        """Send online message to the group"""
         try:
-            if not self.default_group_id:
-                logger.error("TELEGRAM_DEFAULT_GROUP not set in environment variables")
+            # Get group ID from environment variable
+            group_id = os.getenv('TELEGRAM_GROUP')
+            if not group_id:
+                logger.error("TELEGRAM_GROUP not found in environment variables")
                 return
                 
-            message = "Hi，COS72 Bot is online now。/help了解更多。"
-            await client.send_message(self.default_group_id, message)
-            logger.info(f"Sent online message to group {self.default_group_id}")
+            # Send online message
+            await client.send_message(group_id, "🤖 Bot is now online!")
+            logger.info("Online message sent successfully")
         except Exception as e:
             logger.error(f"Error sending online message: {str(e)}")
 

@@ -40,15 +40,24 @@ def send_message():
         
         # Create async task for sending message
         async def send_async():
-            if scheduled_time:
-                scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
-                now = datetime.now()
-                delay = (scheduled_datetime - now).total_seconds()
+            try:
+                # First try to get the entity
+                entity = await client.get_entity(chat_id)
                 
-                if delay > 0:
-                    await asyncio.sleep(delay)
-            
-            await client.send_message(chat_id, message)
+                if scheduled_time:
+                    scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
+                    now = datetime.now()
+                    delay = (scheduled_datetime - now).total_seconds()
+                    
+                    if delay > 0:
+                        await asyncio.sleep(delay)
+                
+                # Send message using the entity
+                await client.send_message(entity, message)
+                logger.info(f"Message sent successfully to {chat_id}")
+            except Exception as e:
+                logger.error(f"Error in send_async: {str(e)}")
+                raise
         
         # Run the async task
         asyncio.run(send_async())
