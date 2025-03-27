@@ -69,33 +69,13 @@ def send_message():
             logger.error("Telegram client not initialized")
             return jsonify({'error': 'Telegram client not initialized'}), 500
             
-        # Get community entity
-        try:
-            # Create async function to get entity
-            async def get_entity():
+        async def send_message_async():
+            try:
+                # 获取群组实体
                 logger.info(f"Attempting to get entity for community: {community_name}")
-                try:
-                    # 直接使用用户名获取实体
-                    entity = await client.get_entity(community_name)
-                    logger.info(f"Successfully retrieved entity: {entity.title} (ID: {entity.id})")
-                    return entity
-                except Exception as e:
-                    logger.error(f"Error getting entity: {str(e)}")
-                    raise e
-            
-            # Run the async function in the event loop with timeout
-            try:
-                community = asyncio.run_coroutine_threadsafe(get_entity(), main_loop).result(timeout=30)
-                logger.info(f"Successfully retrieved community: {community.title} (ID: {community.id})")
-            except asyncio.TimeoutError:
-                logger.error("Timeout while getting community entity")
-                return jsonify({'error': 'Timeout while getting community information'}), 500
-        except Exception as e:
-            logger.error(f"Failed to get community entity: {str(e)}")
-            return jsonify({'error': f'Failed to get community: {str(e)}'}), 500
-            
-        async def send_async():
-            try:
+                community = await client.get_entity(community_name)
+                logger.info(f"Found group: {community.title} (ID: {community.id})")
+                
                 if scheduled_time:
                     # Convert scheduled_time to datetime
                     schedule_dt = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
@@ -106,28 +86,21 @@ def send_message():
                         logger.info(f"Scheduling message for {schedule_dt} (delay: {delay}s)")
                         await asyncio.sleep(delay)
                 
-                logger.info(f"Attempting to send message to community {community.title} (ID: {community.id})")
-                logger.info(f"Message content: {message}")
-                logger.info(f"Topic ID: {topic_id}")
-                
                 # 发送消息
-                try:
-                    response = await client.send_message(
-                        community,
-                        message,
-                        reply_to=topic_id
-                    )
-                    logger.info(f"Message sent successfully! Message ID: {response.id}")
-                    return {'success': True, 'message_id': response.id}
-                except Exception as e:
-                    logger.error(f"Error sending message: {str(e)}")
-                    logger.error(f"Error type: {type(e)}")
-                    raise e
+                logger.info(f"Attempting to send message to topic {topic_id}")
+                logger.info(f"Message content: {message}")
+                
+                response = await client.send_message(
+                    community,
+                    message,
+                    reply_to=topic_id
+                )
+                logger.info(f"Message sent successfully! Message ID: {response.id}")
+                return {'success': True, 'message_id': response.id}
                 
             except Exception as e:
-                logger.error(f"Error in send_async: {str(e)}")
+                logger.error(f"Error in send_message_async: {str(e)}")
                 logger.error(f"Error type: {type(e)}")
-                logger.error(f"Error details: {str(e)}")
                 return {'error': str(e)}
         
         if scheduled_time:
@@ -136,23 +109,23 @@ def send_message():
                 return jsonify({'error': 'Server not ready for scheduled messages'}), 500
                 
             # Schedule the message
-            future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
+            future = asyncio.run_coroutine_threadsafe(send_message_async(), main_loop)
             logger.info("Message scheduled successfully")
             return jsonify({'success': True, 'scheduled': True})
         else:
-            # Send immediately with timeout
+            # Send immediately
             logger.info("Attempting to send message immediately")
             try:
-                response = asyncio.run_coroutine_threadsafe(send_async(), main_loop).result(timeout=60)
+                response = asyncio.run_coroutine_threadsafe(send_message_async(), main_loop).result(timeout=60)
                 if 'error' in response:
-                    logger.error(f"Error in send_async: {response['error']}")
+                    logger.error(f"Error in send_message_async: {response['error']}")
                     return jsonify(response), 500
                 return jsonify(response)
             except asyncio.TimeoutError:
                 logger.error("Timeout while sending message")
                 return jsonify({'error': 'Timeout while sending message'}), 500
             except Exception as e:
-                logger.error(f"Error executing send_async: {str(e)}")
+                logger.error(f"Error executing send_message_async: {str(e)}")
                 return jsonify({'error': str(e)}), 500
             
     except Exception as e:
