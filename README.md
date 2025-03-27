@@ -330,6 +330,7 @@ Available commands:
 每次修改后请运行app.py
 每次更新，记得更新version，例如0.23.0 -——-》 0.23.1，递增0.1
 每次记得输出更改了那几个文件，会可能影响那些功能
+测试禁言功能用username=nicolasshuaishuai
 
 频道输入的处理方式：
 从 Account_Abstraction_Community/2817 格式中提取社区名称和话题 ID
