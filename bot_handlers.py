@@ -4,6 +4,7 @@ import random
 import string
 from datetime import datetime, timedelta
 from telethon.tl.types import ChatBannedRights
+from telethon.tl.types import MessageActionChatAddUser
 
 logger = logging.getLogger(__name__)
 
@@ -90,10 +91,13 @@ class BotHandlers:
     async def handle_new_member(self, event, client):
         """Handle new member joined event"""
         try:
-            # Get the new member
-            new_member = event.new_participant
-            if not new_member:
+            # Check if this is a user join event
+            if not hasattr(event, 'action') or not isinstance(event.action, MessageActionChatAddUser):
                 return
+                
+            # Get the new member from the action
+            new_member_id = event.action.users[0]
+            logger.info(f"New member joined: {new_member_id}")
             
             # Get chat information
             chat = await event.get_chat()
@@ -101,38 +105,35 @@ class BotHandlers:
             
             # Get bot information
             bot = await client.get_me()
-            bot_id = bot.id
             
-            # Check if the new member is not a bot
-            if not new_member.bot:
-                # Restrict the new member for 4 hours
-                until_date = datetime.now() + timedelta(hours=4)
-                await client.edit_permissions(
-                    chat_id,
-                    new_member.id,
-                    until_date=until_date,
-                    send_messages=False,
-                    send_media=False,
-                    send_stickers=False,
-                    send_gifs=False,
-                    send_games=False,
-                    use_inline_bots=False
-                )
-                
-                # Send welcome message with instructions
-                welcome_message = (
-                    f"Welcome {new_member.first_name}! 👋\n\n"
-                    f"You are currently muted for 4 hours.\n"
-                    f"To unmute yourself, please:\n"
-                    f"1. Send a private message to @{bot.username}\n"
-                    f"2. Use the /password command\n"
-                    f"3. Enter today's password\n\n"
-                    f"Today's password: {self.daily_password}"
-                )
-                
-                await event.reply(welcome_message)
-                logger.info(f"Restricted new member {new_member.id} in chat {chat_id}")
-                
+            # Restrict the new member for 4 hours
+            until_date = datetime.now() + timedelta(hours=4)
+            await client.edit_permissions(
+                chat_id,
+                new_member_id,
+                until_date=until_date,
+                send_messages=False,
+                send_media=False,
+                send_stickers=False,
+                send_gifs=False,
+                send_games=False,
+                use_inline_bots=False
+            )
+            
+            # Send welcome message with instructions
+            welcome_message = (
+                f"Welcome! 👋\n\n"
+                f"You are currently muted for 4 hours.\n"
+                f"To unmute yourself, please:\n"
+                f"1. Send a private message to @{bot.username}\n"
+                f"2. Use the /password command\n"
+                f"3. Enter today's password\n\n"
+                f"Today's password: {self.daily_password}"
+            )
+            
+            await event.reply(welcome_message)
+            logger.info(f"Restricted new member {new_member_id} in chat {chat_id}")
+            
         except Exception as e:
             logger.error(f"Error handling new member: {str(e)}")
 

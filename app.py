@@ -82,6 +82,13 @@ def run_flask(client):
     # Initialize web routes
     init_web_routes(app, client)
     init_twitter_routes(app)
+    
+    # Set the main event loop for both web and twitter routes
+    loop = asyncio.get_event_loop()
+    set_main_loop(loop)
+    web_routes.set_main_loop(loop)
+    twitter_routes.set_main_loop(loop)
+    
     app.run(host='0.0.0.0', port=PORT)
 
 async def main():
@@ -98,9 +105,6 @@ async def main():
     
     # Start the scheduler
     scheduler_task = asyncio.create_task(schedule_tasks(client))
-    
-    # Set the main event loop for web routes
-    set_main_loop(asyncio.get_event_loop())
     
     # Run Flask in a separate thread
     import threading

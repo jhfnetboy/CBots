@@ -60,6 +60,12 @@ def send_message():
             logger.error(f"Invalid channel format: {channel}")
             return jsonify({'error': 'Invalid channel format. Use format: CommunityName/TopicID'}), 400
             
+        # Get client from blueprint
+        client = web_bp.client
+        if not client:
+            logger.error("Telegram client not initialized")
+            return jsonify({'error': 'Telegram client not initialized'}), 500
+            
         # Get community entity
         try:
             community = client.get_entity(community_name)
