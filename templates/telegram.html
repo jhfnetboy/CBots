@@ -116,12 +116,12 @@
                     alert('Please enter a valid numeric channel ID');
                     return;
                 }
-                // Use custom channel ID with -100 prefix
-                channelId = -100 + parseInt(customChannelId);
+                // Properly format channel ID with -100 prefix
+                channelId = parseInt("-100" + customChannelId);
             } else if (channelSelect) {
-                // Use predefined channels
+                // Use predefined channels (already properly formatted with -100 prefix)
                 if (channelSelect === 'channel1') {
-                    channelId = -1001;
+                    channelId = -1001001;
                 } else if (channelSelect === 'channel2') {
                     channelId = -10018472;
                 } else if (channelSelect === 'channel3') {
@@ -136,6 +136,8 @@
                 alert('Please enter a message');
                 return;
             }
+            
+            console.log("Sending to channel ID:", channelId);
             
             try {
                 const response = await fetch('/api/send_message', {
