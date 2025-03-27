@@ -33,14 +33,14 @@ def send_message():
     try:
         data = request.get_json()
         message = data.get('message')
-        channel_id = data.get('channel_id')
+        channel_input = data.get('channel_id')  # 格式: Account_Abstraction_Community/2817
         scheduled_time = data.get('scheduled_time')
         
-        if not message or channel_id is None:
-            return jsonify({'error': 'Missing message or channel_id'}), 400
+        if not message or not channel_input:
+            return jsonify({'error': 'Missing message or channel input'}), 400
             
         # Log the message
-        logger.info(f"Sending message to channel {channel_id}: {message}")
+        logger.info(f"Sending message to channel {channel_input}: {message}")
         
         # Get client from app context
         client = web_bp.client
@@ -48,18 +48,27 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # Convert channel_id to integer if it's a string
-                if isinstance(channel_id, str):
-                    channel_id_int = int(channel_id)
-                else:
-                    channel_id_int = channel_id
+                # First try to get the entity
+                try:
+                    # 构建完整的频道用户名
+                    channel_username = f"@{channel_input}"
+                    entity = await client.get_entity(channel_username)
+                    logger.info(f"Successfully got entity for channel {channel_username}")
+                except Exception as e:
+                    logger.error(f"Failed to get entity with username: {str(e)}")
+                    try:
+                        # 尝试使用频道ID
+                        channel_number = channel_input.split('/')[-1]
+                        channel_id = int(f"-100{channel_number}")
+                        entity = await client.get_entity(channel_id)
+                        logger.info(f"Successfully got entity using channel ID {channel_id}")
+                    except Exception as e2:
+                        logger.error(f"Failed to get entity with channel ID: {str(e2)}")
+                        raise
                 
-                # Create PeerChannel object
-                peer = PeerChannel(channel_id=channel_id_int)
-                
-                # Send message using the peer
-                await client.send_message(peer, message)
-                logger.info(f"Message sent successfully to channel {channel_id}")
+                # Send message using the entity
+                await client.send_message(entity, message)
+                logger.info(f"Message sent successfully to {channel_input}")
                 
                 # Handle scheduled message if needed
                 if scheduled_time:
@@ -70,7 +79,7 @@ def send_message():
                     if delay > 0:
                         logger.info(f"Message scheduled for {scheduled_datetime}")
                         await asyncio.sleep(delay)
-                        await client.send_message(peer, f"[Scheduled Message] {message}")
+                        await client.send_message(entity, f"[Scheduled Message] {message}")
                         logger.info(f"Scheduled message sent to channel")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
