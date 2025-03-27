@@ -110,35 +110,24 @@ def send_message():
                 logger.info(f"Message content: {message}")
                 logger.info(f"Topic ID: {topic_id}")
                 
-                # Send message to topic with retry mechanism
-                max_retries = 3
-                retry_delay = 2  # seconds
-                
-                for attempt in range(max_retries):
-                    try:
-                        logger.info(f"Attempt {attempt + 1} of {max_retries}")
-                        
-                        # 尝试发送消息
-                        response = await client.send_message(
-                            community,
-                            message,
-                            reply_to=topic_id
-                        )
-                        logger.info(f"消息发送成功! 消息ID: {response.id}")
-                        return {'success': True, 'message_id': response.id}
-                        
-                    except Exception as e:
-                        logger.error(f"Attempt {attempt + 1} failed: {str(e)}")
-                        if attempt < max_retries - 1:
-                            logger.info(f"Waiting {retry_delay} seconds before retry...")
-                            await asyncio.sleep(retry_delay)
-                        else:
-                            raise e
+                # 发送消息
+                try:
+                    response = await client.send_message(
+                        community,
+                        message,
+                        reply_to=topic_id
+                    )
+                    logger.info(f"Message sent successfully! Message ID: {response.id}")
+                    return {'success': True, 'message_id': response.id}
+                except Exception as e:
+                    logger.error(f"Error sending message: {str(e)}")
+                    logger.error(f"Error type: {type(e)}")
+                    raise e
                 
             except Exception as e:
-                logger.error(f"发送消息时出错: {str(e)}")
-                logger.error(f"错误类型: {type(e)}")
-                logger.error(f"错误详情: {str(e)}")
+                logger.error(f"Error in send_async: {str(e)}")
+                logger.error(f"Error type: {type(e)}")
+                logger.error(f"Error details: {str(e)}")
                 return {'error': str(e)}
         
         if scheduled_time:
