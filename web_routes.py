@@ -42,12 +42,14 @@ def send_message():
         # 从输入中提取频道ID
         try:
             channel_number = channel_input.split('/')[-1]
-            channel_id = int(channel_number)
-        except (IndexError, ValueError):
+            channel_id = int(channel_number)  # 不需要添加-100前缀
+            logger.info(f"Extracted channel ID: {channel_id}")
+        except (IndexError, ValueError) as e:
+            logger.error(f"Failed to extract channel ID: {str(e)}")
             return jsonify({'error': 'Invalid channel input format. Expected format: Account_Abstraction_Community/2817'}), 400
             
         # Log the message
-        logger.info(f"Sending message to channel {channel_input}: {message}")
+        logger.info(f"Sending message to channel {channel_id}: {message}")
         
         # Get client from app context
         client = web_bp.client
@@ -55,25 +57,14 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # First try to get the entity
-                try:
-                    # 尝试使用带-100前缀的频道ID
-                    full_channel_id = int(f"-100{channel_id}")
-                    entity = await client.get_entity(full_channel_id)
-                    logger.info(f"Successfully got entity for channel {full_channel_id}")
-                except Exception as e:
-                    logger.error(f"Failed to get entity with full ID: {str(e)}")
-                    try:
-                        # 尝试使用原始频道ID
-                        entity = await client.get_entity(channel_id)
-                        logger.info(f"Successfully got entity using original channel ID {channel_id}")
-                    except Exception as e2:
-                        logger.error(f"Failed to get entity with original ID: {str(e2)}")
-                        raise
+                # 使用PeerChannel获取实体
+                peer = PeerChannel(channel_id=channel_id)
+                entity = await client.get_entity(peer)
+                logger.info(f"Successfully got entity for channel {channel_id}")
                 
                 # Send message using the entity
                 await client.send_message(entity, message)
-                logger.info(f"Message sent successfully to {channel_input}")
+                logger.info(f"Message sent successfully to {channel_id}")
                 
                 # Handle scheduled message if needed
                 if scheduled_time:
