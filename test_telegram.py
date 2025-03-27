@@ -3,6 +3,9 @@ import os
 from telethon import TelegramClient
 from telethon.tl.types import InputPeerChannel, PeerChannel, InputChannel
 from telethon.utils import get_peer_id, resolve_id
+from telethon.tl.functions.messages import GetDiscussionMessageRequest
+from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.tl.functions.channels import GetForumTopicsRequest
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -24,40 +27,26 @@ async def test_channel_entity():
         
         # Test channel input
         community = "Account_Abstraction_Community"
-        channel_id = 2817
+        topic_id = 2817
         
-        # 方法1: 使用社区名称获取社区实体
-        print("\nMethod 1: Get community entity")
+        # 方法1: 使用社区名称获取社区实体并发送消息到话题
+        print("\nMethod 1: Send message to topic")
         try:
+            # 获取社区实体
             community_entity = await client.get_entity(community)
-            print(f"Community entity: {community_entity}")
-            print(f"Community ID: {community_entity.id}")
-            print(f"Community Access Hash: {community_entity.access_hash}")
+            print(f"Got community entity: {community_entity.id}")
             
-            # 尝试不同的频道 ID 组合
-            combinations = [
-                (f"{community_entity.id}/{channel_id}", "Community ID/Channel ID"),
-                (f"-100{channel_id}", "-100 + Channel ID"),
-                (f"{community_entity.id}_{channel_id}", "Community ID_Channel ID"),
-                (channel_id, "Raw Channel ID"),
-                (f"{community}/{channel_id}", "Community Name/Channel ID")
-            ]
-            
-            for channel_input, desc in combinations:
-                print(f"\nTrying {desc}: {channel_input}")
-                try:
-                    entity = await client.get_entity(channel_input)
-                    print(f"Success! Entity: {entity}")
-                    
-                    # 尝试发送测试消息
-                    message = await client.send_message(entity, f"Test message to {desc}")
-                    print(f"Message sent successfully: {message}")
-                    break
-                except Exception as e:
-                    print(f"Failed: {str(e)}")
+            # 直接发送消息到话题
+            print(f"\nTrying to send message to topic {topic_id}")
+            message = await client.send_message(
+                entity=community_entity,
+                message="Test message to topic",
+                reply_to=topic_id
+            )
+            print(f"Message sent successfully: {message}")
             
         except Exception as e:
-            print(f"Failed with community: {str(e)}")
+            print(f"Failed to send message: {str(e)}")
             
     except Exception as e:
         print(f"Error: {str(e)}")

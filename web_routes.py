@@ -17,7 +17,7 @@ web_bp = Blueprint('web', __name__)
 main_loop = None
 
 # Version
-VERSION = "0.23.11"
+VERSION = "0.23.12"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -43,37 +43,41 @@ def send_message():
         if not message or not channel_input:
             return jsonify({'error': 'Missing message or channel input'}), 400
             
-        # 处理频道ID
+        # 处理频道输入
         try:
-            # 从 Account_Abstraction_Community/2817 格式中提取用户名
+            # 从 Account_Abstraction_Community/2817 格式中提取社区名称和话题ID
             parts = str(channel_input).split('/')
             logger.info(f"Split channel input into parts: {parts}")
             
             if len(parts) < 2:
                 raise ValueError("Invalid format")
-            channel_username = parts[0].strip()
-            logger.info(f"Extracted channel username: {channel_username}")
+                
+            community_name = parts[0].strip()
+            topic_id = int(parts[1].strip())
+            
+            logger.info(f"Extracted community name: {community_name}, topic ID: {topic_id}")
             
         except (IndexError, ValueError) as e:
-            logger.error(f"Failed to extract channel username: {str(e)}")
-            return jsonify({'error': 'Invalid channel input format. Please use format: Account_Abstraction_Community/18472'}), 400
+            logger.error(f"Failed to extract community name and topic ID: {str(e)}")
+            return jsonify({'error': 'Invalid channel input format. Please use format: Account_Abstraction_Community/2817'}), 400
             
-        # Log the message
-        logger.info(f"Sending message to channel {channel_username}: {message}")
-        
         # Get client from app context
         client = web_bp.client
         
         # Create async task for sending message
         async def send_async():
             try:
-                # 使用用户名获取实体
-                entity = await client.get_entity(channel_username)
-                logger.info(f"Successfully got entity for channel {channel_username} (ID: {entity.id})")
+                # 获取社区实体
+                community_entity = await client.get_entity(community_name)
+                logger.info(f"Got community entity: {community_entity.id}")
                 
-                # Send message using the entity
-                await client.send_message(entity, message)
-                logger.info(f"Message sent successfully to {channel_username}")
+                # 发送消息到话题
+                sent_message = await client.send_message(
+                    entity=community_entity,
+                    message=message,
+                    reply_to=topic_id
+                )
+                logger.info(f"Message sent successfully to topic {topic_id}")
                 
                 # Handle scheduled message if needed
                 if scheduled_time:
@@ -84,8 +88,13 @@ def send_message():
                     if delay > 0:
                         logger.info(f"Message scheduled for {scheduled_datetime}")
                         await asyncio.sleep(delay)
-                        await client.send_message(entity, f"[Scheduled Message] {message}")
-                        logger.info(f"Scheduled message sent to channel")
+                        await client.send_message(
+                            entity=community_entity,
+                            message=f"[Scheduled Message] {message}",
+                            reply_to=topic_id
+                        )
+                        logger.info(f"Scheduled message sent to topic {topic_id}")
+                        
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
                 raise
