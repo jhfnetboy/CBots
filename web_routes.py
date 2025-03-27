@@ -18,7 +18,7 @@ web_bp = Blueprint('web', __name__)
 main_loop = None
 
 # Version
-VERSION = "0.23.6"
+VERSION = "0.23.7"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -49,7 +49,7 @@ def send_message():
             if len(parts) < 2:
                 raise ValueError("Invalid format")
             channel_number = parts[-1].strip()
-            channel_id = int(channel_number)  # 先转换为整数
+            channel_id = int(f"-100{channel_number}")  # 添加-100前缀
             logger.info(f"Extracted channel ID: {channel_id}")
         except (IndexError, ValueError) as e:
             logger.error(f"Failed to extract channel ID: {str(e)}")
@@ -64,8 +64,8 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # 使用PeerChannel获取实体
-                peer = PeerChannel(channel_id=channel_id)
+                # 使用InputPeerChannel获取实体
+                peer = InputPeerChannel(channel_id=channel_id, access_hash=0)
                 entity = await client.get_entity(peer)
                 logger.info(f"Successfully got entity for channel {channel_id}")
                 
