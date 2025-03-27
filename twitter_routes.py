@@ -29,6 +29,7 @@ def set_main_loop(loop):
     """Set the main event loop"""
     global main_loop
     main_loop = loop
+    logger.info("Main loop set for Twitter routes")
 
 def init_twitter_client():
     """Initialize Twitter client with v2 API"""
@@ -75,7 +76,9 @@ def send_tweet():
                     # Wait until scheduled time
                     now = datetime.utcnow()
                     if schedule_dt > now:
-                        await asyncio.sleep((schedule_dt - now).total_seconds())
+                        delay = (schedule_dt - now).total_seconds()
+                        logger.info(f"Scheduling tweet for {schedule_dt} (delay: {delay}s)")
+                        await asyncio.sleep(delay)
                 
                 # Send tweet using v2 API
                 response = client.create_tweet(text=message)
@@ -88,8 +91,13 @@ def send_tweet():
                 return {'error': str(e)}
         
         if scheduled_time:
+            if main_loop is None:
+                logger.error("Main loop not set for scheduled tweets")
+                return jsonify({'error': 'Server not ready for scheduled tweets'}), 500
+                
             # Schedule the tweet
-            asyncio.run_coroutine_threadsafe(send_async(), main_loop)
+            future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
+            logger.info("Tweet scheduled successfully")
             return jsonify({'success': True, 'scheduled': True})
         else:
             # Send immediately

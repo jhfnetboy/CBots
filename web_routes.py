@@ -34,80 +34,73 @@ def send_message():
     """Send message endpoint"""
     try:
         data = request.get_json()
+        channel = data.get('channel')
         message = data.get('message')
-        channel_input = data.get('channel_id')  # 格式: Account_Abstraction_Community/2817
         scheduled_time = data.get('scheduled_time')
         
-        logger.info(f"Received request - Message: {message}, Channel: {channel_input}")
-        
-        if not message or not channel_input:
-            return jsonify({'error': 'Missing message or channel input'}), 400
+        if not channel or not message:
+            return jsonify({'error': 'Channel and message are required'}), 400
             
-        # 处理频道输入
+        # Extract community name and topic ID from input format: "Account_Abstraction_Community/2817"
         try:
-            # 从 Account_Abstraction_Community/2817 格式中提取社区名称和话题ID
-            parts = str(channel_input).split('/')
-            logger.info(f"Split channel input into parts: {parts}")
-            
-            if len(parts) < 2:
-                raise ValueError("Invalid format")
-                
-            community_name = parts[0].strip()
-            topic_id = int(parts[1].strip())
-            
+            community_name, topic_id = channel.split('/')
+            topic_id = int(topic_id)
             logger.info(f"Extracted community name: {community_name}, topic ID: {topic_id}")
+        except ValueError as e:
+            logger.error(f"Invalid channel format: {channel}")
+            return jsonify({'error': 'Invalid channel format. Use format: CommunityName/TopicID'}), 400
             
-        except (IndexError, ValueError) as e:
-            logger.error(f"Failed to extract community name and topic ID: {str(e)}")
-            return jsonify({'error': 'Invalid channel input format. Please use format: Account_Abstraction_Community/2817'}), 400
+        # Get community entity
+        try:
+            community = client.get_entity(community_name)
+            logger.info(f"Successfully retrieved community: {community.title} (ID: {community.id})")
+        except Exception as e:
+            logger.error(f"Failed to get community entity: {str(e)}")
+            return jsonify({'error': f'Failed to get community: {str(e)}'}), 500
             
-        # Get client from app context
-        client = web_bp.client
-        
-        # Create async task for sending message
         async def send_async():
             try:
-                # 获取社区实体
-                community_entity = await client.get_entity(community_name)
-                logger.info(f"Got community entity: {community_entity.id}")
+                if scheduled_time:
+                    # Convert scheduled_time to datetime
+                    schedule_dt = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
+                    # Wait until scheduled time
+                    now = datetime.utcnow()
+                    if schedule_dt > now:
+                        delay = (schedule_dt - now).total_seconds()
+                        logger.info(f"Scheduling message for {schedule_dt} (delay: {delay}s)")
+                        await asyncio.sleep(delay)
                 
-                # 发送消息到话题
-                sent_message = await client.send_message(
-                    entity=community_entity,
-                    message=message,
+                # Send message to topic
+                response = await client.send_message(
+                    community,
+                    message,
                     reply_to=topic_id
                 )
-                logger.info(f"Message sent successfully to topic {topic_id}")
+                logger.info(f"Message sent successfully! Message ID: {response.id}")
+                return {'success': True, 'message_id': response.id}
                 
-                # Handle scheduled message if needed
-                if scheduled_time:
-                    scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
-                    now = datetime.now()
-                    delay = (scheduled_datetime - now).total_seconds()
-                    
-                    if delay > 0:
-                        logger.info(f"Message scheduled for {scheduled_datetime}")
-                        await asyncio.sleep(delay)
-                        await client.send_message(
-                            entity=community_entity,
-                            message=f"[Scheduled Message] {message}",
-                            reply_to=topic_id
-                        )
-                        logger.info(f"Scheduled message sent to topic {topic_id}")
-                        
             except Exception as e:
-                logger.error(f"Error in send_async: {str(e)}")
-                raise
+                logger.error(f"Error sending message: {str(e)}")
+                return {'error': str(e)}
         
-        # Create a future to wait for the result
-        future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
-        
-        # Wait for the result
-        future.result(timeout=30)  # 30 seconds timeout
-        
-        return jsonify({'status': 'success'}), 200
+        if scheduled_time:
+            if main_loop is None:
+                logger.error("Main loop not set for scheduled messages")
+                return jsonify({'error': 'Server not ready for scheduled messages'}), 500
+                
+            # Schedule the message
+            future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
+            logger.info("Message scheduled successfully")
+            return jsonify({'success': True, 'scheduled': True})
+        else:
+            # Send immediately
+            response = asyncio.run(send_async())
+            if 'error' in response:
+                return jsonify(response), 500
+            return jsonify(response)
+            
     except Exception as e:
-        logger.error(f"Error sending message: {str(e)}")
+        logger.error(f"Error in send_message: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def init_web_routes(app, client):

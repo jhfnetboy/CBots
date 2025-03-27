@@ -1,6 +1,7 @@
 import os
 import tweepy
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -28,8 +29,9 @@ def test_twitter():
             access_token_secret=access_token_secret
         )
         
-        # Test tweet using v2
-        test_message = "This is a test tweet from the Twitter bot test script using API v2."
+        # Test tweet using v2 with timestamp to avoid duplicates
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        test_message = f"Test tweet from Twitter bot test script using API v2 - {current_time}"
         response = client.create_tweet(text=test_message)
         print(f"Test tweet sent successfully! Tweet ID: {response.data['id']}")
         
