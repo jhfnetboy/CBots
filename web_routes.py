@@ -49,11 +49,8 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # First get the input entity
-                entity = await client.get_input_entity(chat_id)
-                
-                # Send message using the entity
-                await client.send_message(entity, message)
+                # Send message directly using the channel ID
+                await client.send_message(chat_id, message)
                 logger.info(f"Message sent successfully to {chat_id}")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
