@@ -144,7 +144,7 @@ class CommandManager:
 
     async def handle_hi(self):
         """Handle /hi command"""
-        return "Hi! How can I help you?"
+        return "Hi, my friends, this is COS72 Bot."
 
     async def handle_content(self):
         """Handle /content command"""

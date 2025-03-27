@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 class BotHandlers:
     def __init__(self):
         self.muted_users = set()  # 改为集合，只记录被禁言的用户ID
-        self.default_group_id = int(os.getenv('DEFAULT_GROUP_ID', 1))
+        self.default_group_id = os.getenv('TELEGRAM_DEFAULT_GROUP')  # 使用环境变量中的群组ID
 
     async def send_online_message(self, client):
         """Send online message to default group"""
@@ -32,9 +32,7 @@ class BotHandlers:
         try:
             message_text = event.message.text
             user_id = event.sender_id
-            
-            # Log the message
-            logger.info(f"Received message from {user_id}: {message_text}")
+            username = event.sender.username or "user"
             
             # Check if user is muted
             if user_id in self.muted_users:
@@ -48,8 +46,13 @@ class BotHandlers:
                     await event.reply(response)
                 return
             
+            # Handle mentions
+            if event.message.mentioned:
+                await event.reply(f"Hi {username}, I get your message: {message_text}")
+                return
+            
             # For other messages, just log them
-            command_manager.log_message(message_text)
+            logger.info(f"Received message from {username}: {message_text}")
             
         except Exception as e:
             logger.error(f"Error handling message: {str(e)}")

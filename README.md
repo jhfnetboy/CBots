@@ -318,5 +318,7 @@ Available commands:
 3. bot会上线后自动发送每日密码（一串随机字符串，每日更新）到群内
 4. /pass命令 bot会再次发送每日密码到群内
 5. 新用户只有私聊bot，发送每日密码给bot，bot过滤得到符合每日密码后解禁该用户的发言；从此后此用户就不是新用户，而是老用户，自由发言了
+6. at bot消息回复：自动回复Hi username，I get your message：原内容
+/hi，回复：Hi， my friends，this is COS72 Bot。
 
 每次修改后请运行app.py

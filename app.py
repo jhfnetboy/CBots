@@ -52,8 +52,17 @@ async def schedule_tasks(client):
         await bot_handlers.check_unmute_users(client)
         await asyncio.sleep(60)  # Check every minute
 
+@app.route('/')
+def index():
+    """Root endpoint"""
+    return jsonify({
+        'status': 'ok',
+        'message': 'COS72 Bot is running'
+    })
+
 @app.route('/send_message', methods=['POST'])
 async def send_message():
+    """Send message endpoint"""
     try:
         data = await request.get_json()
         message = data.get('message')
