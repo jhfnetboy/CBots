@@ -18,7 +18,7 @@ web_bp = Blueprint('web', __name__)
 main_loop = None
 
 # Version
-VERSION = "0.23.9"
+VERSION = "0.23.10"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -55,8 +55,8 @@ def send_message():
             channel_number = parts[-1].strip()
             logger.info(f"Extracted channel number: {channel_number}")
             
-            # 使用带-100前缀的ID
-            channel_id = int(f"-100{channel_number}")
+            # 使用 get_peer_id 获取正确的频道ID
+            channel_id = get_peer_id(PeerChannel(int(channel_number)))
             logger.info(f"Using channel ID: {channel_id}")
         except (IndexError, ValueError) as e:
             logger.error(f"Failed to extract channel ID: {str(e)}")
