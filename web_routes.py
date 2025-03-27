@@ -90,6 +90,7 @@ def send_message():
                 logger.info(f"Attempting to send message to topic {topic_id}")
                 logger.info(f"Message content: {message}")
                 
+                # 使用 send_message 发送消息
                 response = await client.send_message(
                     community,
                     message,
@@ -103,30 +104,23 @@ def send_message():
                 logger.error(f"Error type: {type(e)}")
                 return {'error': str(e)}
         
-        if scheduled_time:
-            if main_loop is None:
-                logger.error("Main loop not set for scheduled messages")
-                return jsonify({'error': 'Server not ready for scheduled messages'}), 500
-                
-            # Schedule the message
-            future = asyncio.run_coroutine_threadsafe(send_message_async(), main_loop)
-            logger.info("Message scheduled successfully")
-            return jsonify({'success': True, 'scheduled': True})
-        else:
-            # Send immediately
-            logger.info("Attempting to send message immediately")
-            try:
-                response = asyncio.run_coroutine_threadsafe(send_message_async(), main_loop).result(timeout=60)
-                if 'error' in response:
-                    logger.error(f"Error in send_message_async: {response['error']}")
-                    return jsonify(response), 500
-                return jsonify(response)
-            except asyncio.TimeoutError:
-                logger.error("Timeout while sending message")
-                return jsonify({'error': 'Timeout while sending message'}), 500
-            except Exception as e:
-                logger.error(f"Error executing send_message_async: {str(e)}")
-                return jsonify({'error': str(e)}), 500
+        # 创建新的事件循环
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            # 运行异步函数
+            response = loop.run_until_complete(send_message_async())
+            if 'error' in response:
+                logger.error(f"Error in send_message_async: {response['error']}")
+                return jsonify(response), 500
+            return jsonify(response)
+        except Exception as e:
+            logger.error(f"Error executing send_message_async: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+        finally:
+            # 关闭事件循环
+            loop.close()
             
     except Exception as e:
         logger.error(f"Error in send_message: {str(e)}")
