@@ -3,180 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Bot Control Panel</title>
+    <title>Telegram Bot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .nav {
-            background-color: #333;
-            padding: 15px;
-            text-align: center;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        body {
+            background-color: #f8f9fa;
         }
-        .nav a {
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background-color: #0088cc;
             color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            margin: 0 10px;
-            border-radius: 3px;
-            transition: background-color 0.3s;
-            min-width: 120px;
-            text-align: center;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
         }
-        .nav a:hover {
-            background-color: #555;
+        .form-control {
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
         }
-        .page-title {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #333;
+        .btn-primary {
+            background-color: #0088cc;
+            border-color: #0088cc;
+            border-radius: 10px;
+            padding: 12px 25px;
+        }
+        .btn-primary:hover {
+            background-color: #006699;
+            border-color: #006699;
         }
         .version {
             position: fixed;
             bottom: 10px;
             right: 10px;
-            color: #666;
+            color: #6c757d;
             font-size: 0.8em;
         }
     </style>
 </head>
 <body>
-    <div class="nav">
-        <a href="/telegram">Telegram Bot</a>
-        <a href="/twitter">Twitter Bot</a>
-    </div>
-
-    <div class="container mt-5">
-        <h1 class="page-title">Telegram Bot Control Panel</h1>
-        
-        <div class="row mt-4">
-            <div class="col-md-8 offset-md-2">
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">Telegram Bot</h3>
+            </div>
+            <div class="card-body">
                 <form id="messageForm">
                     <div class="mb-3">
-                        <label for="channelSelect" class="form-label">Select Channel</label>
-                        <select class="form-select" id="channelSelect">
-                            <option value="">Select a predefined channel or custom</option>
-                            <option value="channel1">Channel 1</option>
-                            <option value="channel2">Channel 2</option>
-                            <option value="channel3">Channel 3</option>
-                            <option value="custom">Custom Channel ID</option>
-                        </select>
+                        <label for="topicInput" class="form-label">Input Topic Name</label>
+                        <input type="text" class="form-control" id="topicInput" 
+                               placeholder="e.g. Account_Abstraction_Community/18472" required>
+                        <div class="form-text">Format: CommunityName/TopicID</div>
                     </div>
-                    
-                    <div class="mb-3" id="customChannelDiv" style="display:none;">
-                        <label for="customChannelId" class="form-label">Custom Channel ID (will add -100 prefix)</label>
-                        <input type="text" class="form-control" id="customChannelId" placeholder="Enter numeric channel ID">
-                    </div>
-                    
                     <div class="mb-3">
-                        <label for="message" class="form-label">Message</label>
-                        <textarea class="form-control" id="message" rows="4" required></textarea>
+                        <label for="messageInput" class="form-label">Message</label>
+                        <textarea class="form-control" id="messageInput" rows="4" required></textarea>
                     </div>
-                    
                     <div class="mb-3">
                         <label for="scheduledTime" class="form-label">Schedule Time (Optional)</label>
                         <input type="datetime-local" class="form-control" id="scheduledTime">
                     </div>
-                    
                     <button type="submit" class="btn btn-primary">Send Message</button>
                 </form>
+                <div id="status" class="mt-3"></div>
             </div>
         </div>
     </div>
-
-    <div class="version-info">
-        Version: 0.23.5
-    </div>
+    <div class="version">Version: {{ version }}</div>
 
     <script>
-        // Handle channel select change
-        document.getElementById('channelSelect').addEventListener('change', function() {
-            const customDiv = document.getElementById('customChannelDiv');
-            if (this.value === 'custom') {
-                customDiv.style.display = 'block';
-            } else {
-                customDiv.style.display = 'none';
-            }
-        });
-
-        // Handle form submission
-        document.getElementById('messageForm').onsubmit = async (e) => {
+        document.getElementById('messageForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const channelSelect = document.getElementById('channelSelect').value;
-            const customChannelId = document.getElementById('customChannelId').value;
-            const message = document.getElementById('message').value;
+            const topicInput = document.getElementById('topicInput').value;
+            const message = document.getElementById('messageInput').value;
             const scheduledTime = document.getElementById('scheduledTime').value;
+            const statusDiv = document.getElementById('status');
             
-            let channelId;
-            
-            if (channelSelect === 'custom') {
-                if (!customChannelId) {
-                    alert('Please enter a channel ID in format: Account_Abstraction_Community/18472');
-                    return;
-                }
-                // 直接使用用户输入的格式
-                channelId = customChannelId;
-            } else if (channelSelect) {
-                // Use predefined channels (already properly formatted with -100 prefix)
-                if (channelSelect === 'channel1') {
-                    channelId = -1001001;
-                } else if (channelSelect === 'channel2') {
-                    channelId = -10018472;
-                } else if (channelSelect === 'channel3') {
-                    channelId = -1002817;
-                }
-            } else {
-                alert('Please select a channel');
+            // 验证话题输入格式
+            if (!topicInput.includes('/')) {
+                statusDiv.innerHTML = '<div class="alert alert-danger">Invalid topic format. Please use format: CommunityName/TopicID</div>';
                 return;
             }
-            
-            if (!message) {
-                alert('Please enter a message');
-                return;
-            }
-            
-            console.log("Sending to channel ID:", channelId);
             
             try {
+                statusDiv.innerHTML = '<div class="alert alert-info">Sending message...</div>';
+                
                 const response = await fetch('/api/send_message', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        channel_id: channelId,
-                        message,
-                        scheduled_time: scheduledTime
+                        message: message,
+                        channel_id: topicInput,
+                        scheduled_time: scheduledTime || null
                     })
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                const data = await response.json();
                 
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Response was not JSON');
-                }
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    alert('Message sent successfully!');
-                    document.getElementById('message').value = '';
+                if (response.ok) {
+                    statusDiv.innerHTML = '<div class="alert alert-success">Message sent successfully!</div>';
+                    document.getElementById('messageInput').value = '';
+                    document.getElementById('scheduledTime').value = '';
                 } else {
-                    alert('Error: ' + result.message);
+                    statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error sending message: ' + error.message);
+                statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
             }
-        };
+        });
     </script>
 </body>
 </html> 

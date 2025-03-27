@@ -3,185 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Twitter Bot Control Panel</title>
+    <title>Twitter Bot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .nav {
-            background-color: #333;
-            padding: 15px;
-            text-align: center;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .nav a {
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            margin: 0 10px;
-            border-radius: 3px;
-            transition: background-color 0.3s;
-            min-width: 120px;
-            text-align: center;
-        }
-        .nav a:hover {
-            background-color: #555;
+            background-color: #f8f9fa;
         }
         .container {
             max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-top: 50px;
         }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #666;
-        }
-        textarea, input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
+        .card-header {
             background-color: #1DA1F2;
             color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
         }
-        button:hover {
+        .form-control {
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+        .btn-primary {
+            background-color: #1DA1F2;
+            border-color: #1DA1F2;
+            border-radius: 10px;
+            padding: 12px 25px;
+        }
+        .btn-primary:hover {
             background-color: #1991db;
-        }
-        #status {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 4px;
-            text-align: center;
-        }
-        .success {
-            background-color: #dff0d8;
-            color: #3c763d;
-        }
-        .error {
-            background-color: #f2dede;
-            color: #a94442;
-        }
-        .page-title {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #333;
+            border-color: #1991db;
         }
         .version {
             position: fixed;
             bottom: 10px;
             right: 10px;
-            color: #666;
+            color: #6c757d;
             font-size: 0.8em;
         }
     </style>
 </head>
 <body>
-    <div class="nav">
-        <a href="/telegram">Telegram Bot</a>
-        <a href="/twitter">Twitter Bot</a>
-    </div>
-
-    <div class="container mt-5">
-        <h1 class="page-title">Twitter Bot Control Panel</h1>
-        
-        <div class="row mt-4">
-            <div class="col-md-8 offset-md-2">
-                <form id="messageForm">
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="mb-0">Twitter Bot</h3>
+            </div>
+            <div class="card-body">
+                <form id="tweetForm">
                     <div class="mb-3">
-                        <label for="message" class="form-label">Message</label>
-                        <textarea class="form-control" id="message" rows="4" required></textarea>
+                        <label for="messageInput" class="form-label">Tweet Message</label>
+                        <textarea class="form-control" id="messageInput" rows="4" required></textarea>
+                        <div class="form-text">Maximum 280 characters</div>
                     </div>
-                    
                     <div class="mb-3">
                         <label for="scheduledTime" class="form-label">Schedule Time (Optional)</label>
                         <input type="datetime-local" class="form-control" id="scheduledTime">
                     </div>
-                    
                     <button type="submit" class="btn btn-primary">Send Tweet</button>
                 </form>
+                <div id="status" class="mt-3"></div>
             </div>
         </div>
     </div>
-
-    <div class="version">v0.22.2</div>
+    <div class="version">Version: {{ version }}</div>
 
     <script>
-        // Handle form submission
-        document.getElementById('messageForm').onsubmit = async (e) => {
+        document.getElementById('tweetForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const message = document.getElementById('message').value;
+            const message = document.getElementById('messageInput').value;
             const scheduledTime = document.getElementById('scheduledTime').value;
+            const statusDiv = document.getElementById('status');
             
             if (!message) {
-                alert('Please enter a message');
+                statusDiv.innerHTML = '<div class="alert alert-danger">Please enter a message</div>';
+                return;
+            }
+            
+            if (message.length > 280) {
+                statusDiv.innerHTML = '<div class="alert alert-danger">Tweet message cannot exceed 280 characters</div>';
                 return;
             }
             
             try {
+                statusDiv.innerHTML = '<div class="alert alert-info">Sending tweet...</div>';
+                
                 const response = await fetch('/api/send_tweet', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        message,
-                        scheduled_time: scheduledTime
+                        message: message,
+                        scheduled_time: scheduledTime || null
                     })
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                const data = await response.json();
                 
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Response was not JSON');
-                }
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    alert('Tweet sent successfully!');
-                    document.getElementById('message').value = '';
+                if (response.ok) {
+                    statusDiv.innerHTML = '<div class="alert alert-success">Tweet sent successfully!</div>';
+                    document.getElementById('messageInput').value = '';
+                    document.getElementById('scheduledTime').value = '';
                 } else {
-                    alert('Error: ' + result.message);
+                    statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error sending tweet: ' + error.message);
+                statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
             }
-        };
+        });
     </script>
 </body>
 </html> 

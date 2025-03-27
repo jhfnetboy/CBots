@@ -9,6 +9,7 @@ from command_manager import CommandManager
 from bot_handlers import BotHandlers
 from dotenv import load_dotenv
 from web_routes import init_web_routes, set_main_loop, VERSION
+from twitter_routes import init_twitter_routes
 
 # Load environment variables
 load_dotenv()
@@ -80,6 +81,7 @@ def run_flask(client):
     """Run Flask in a separate thread"""
     # Initialize web routes
     init_web_routes(app, client)
+    init_twitter_routes(app)
     app.run(host='0.0.0.0', port=PORT)
 
 async def main():
