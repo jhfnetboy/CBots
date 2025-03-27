@@ -31,7 +31,6 @@ def send_message():
         data = request.get_json()
         message = data.get('message')
         channel_id = data.get('channel_id')
-        scheduled_time = data.get('scheduled_time')
         
         if not message or not channel_id:
             return jsonify({'error': 'Missing message or channel_id'}), 400
@@ -40,6 +39,16 @@ def send_message():
         chat_id = os.getenv(channel_id)
         if not chat_id:
             return jsonify({'error': f'Channel ID {channel_id} not found'}), 404
+            
+        # Convert chat_id to integer and add -100 prefix
+        try:
+            numeric_id = int(chat_id)
+            if numeric_id > 0:
+                numeric_id = -100 + numeric_id
+            chat_id = str(numeric_id)
+        except ValueError:
+            logger.error(f"Invalid channel ID format: {chat_id}")
+            return jsonify({'error': 'Invalid channel ID format'}), 400
             
         # Log the message
         logger.info(f"Sending message to channel {channel_id}: {message}")
@@ -50,27 +59,8 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # Convert chat_id to integer if it's numeric
-                try:
-                    numeric_id = int(chat_id)
-                    # Add -100 prefix for channels
-                    if numeric_id > 0:
-                        numeric_id = -100 + numeric_id
-                    entity = await client.get_entity(numeric_id)
-                except ValueError:
-                    # If not numeric, try to get entity directly
-                    entity = await client.get_entity(chat_id)
-                
-                if scheduled_time:
-                    scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
-                    now = datetime.now()
-                    delay = (scheduled_datetime - now).total_seconds()
-                    
-                    if delay > 0:
-                        await asyncio.sleep(delay)
-                
-                # Send message using the entity
-                await client.send_message(entity, message)
+                # Send message directly
+                await client.send_message(chat_id, message)
                 logger.info(f"Message sent successfully to {chat_id}")
             except Exception as e:
                 logger.error(f"Error in send_async: {str(e)}")
