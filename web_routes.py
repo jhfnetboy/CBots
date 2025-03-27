@@ -17,6 +17,9 @@ web_bp = Blueprint('web', __name__)
 # Store the main event loop
 main_loop = None
 
+# Version
+VERSION = "0.23.1"
+
 def set_main_loop(loop):
     """Set the main event loop"""
     global main_loop
@@ -41,8 +44,15 @@ def send_message():
             
         # 从输入中提取频道ID
         try:
-            channel_number = channel_input.split('/')[-1]
-            channel_id = int(channel_number)  # 不需要添加-100前缀
+            # 确保输入是字符串
+            channel_input = str(channel_input)
+            # 分割字符串并获取最后一部分
+            parts = channel_input.split('/')
+            if len(parts) < 2:
+                raise ValueError("Invalid format")
+            # 获取数字部分并转换为整数
+            channel_number = parts[-1].strip()
+            channel_id = int(channel_number)
             logger.info(f"Extracted channel ID: {channel_id}")
         except (IndexError, ValueError) as e:
             logger.error(f"Failed to extract channel ID: {str(e)}")

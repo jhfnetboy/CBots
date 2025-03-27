@@ -325,3 +325,4 @@ Available commands:
 /hi，回复：Hi， my friends，this is COS72 Bot。
 
 每次修改后请运行app.py
+每次更新，记得更新version，例如0.23.0 -——-》 0.23.1，递增0.1
