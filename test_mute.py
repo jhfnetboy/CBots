@@ -66,19 +66,26 @@ async def test_mute_user(client, username):
         # 设置禁言时间为4小时
         until_date = datetime.now() + timedelta(hours=4)
         
+        # 创建禁言权限
+        banned_rights = ChatBannedRights(
+            until_date=until_date,
+            send_messages=True,
+            send_media=True,
+            send_stickers=True,
+            send_gifs=True,
+            send_games=True,
+            send_inline=True,
+            embed_links=True
+        )
+        
         # 使用 edit_permissions 进行禁言
         await client.edit_permissions(
             TEST_GROUP,
             user.id,
-            until_date=until_date,
-            send_messages=False,
-            send_media=False,
-            send_stickers=False,
-            send_gifs=False,
-            send_games=False
+            banned_rights=banned_rights
         )
         
-        logger.info(f"Successfully muted user {username}")
+        logger.info(f"Successfully muted user {username} until {until_date}")
         return True
     except Exception as e:
         logger.error(f"Error muting user: {str(e)}")
@@ -95,15 +102,23 @@ async def test_unmute_user(client, username):
             logger.error("Could not find user in group")
             return False
             
+        # 创建解除禁言权限
+        unbanned_rights = ChatBannedRights(
+            until_date=None,
+            send_messages=False,
+            send_media=False,
+            send_stickers=False,
+            send_gifs=False,
+            send_games=False,
+            send_inline=False,
+            embed_links=False
+        )
+        
         # 解除禁言
         await client.edit_permissions(
             TEST_GROUP,
             user.id,
-            send_messages=True,
-            send_media=True,
-            send_stickers=True,
-            send_gifs=True,
-            send_games=True
+            banned_rights=unbanned_rights
         )
         
         logger.info(f"Successfully unmuted user {username}")

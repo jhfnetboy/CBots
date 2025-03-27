@@ -75,31 +75,13 @@ def send_message():
             async def get_entity():
                 logger.info(f"Attempting to get entity for community: {community_name}")
                 try:
-                    # 尝试直接获取实体
+                    # 直接使用用户名获取实体
                     entity = await client.get_entity(community_name)
                     logger.info(f"Successfully retrieved entity: {entity.title} (ID: {entity.id})")
                     return entity
                 except Exception as e:
-                    logger.error(f"Error getting entity directly: {str(e)}")
-                    # 尝试使用输入实体
-                    try:
-                        input_entity = await client.get_input_entity(community_name)
-                        logger.info(f"Successfully retrieved input entity: {input_entity}")
-                        return input_entity
-                    except Exception as e2:
-                        logger.error(f"Error getting input entity: {str(e2)}")
-                        # 尝试使用群组ID
-                        try:
-                            # 从环境变量获取群组ID
-                            group_id = os.getenv('TELEGRAM_DEFAULT_GROUP')
-                            if group_id:
-                                logger.info(f"Attempting to get entity by ID: {group_id}")
-                                entity = await client.get_entity(int(group_id))
-                                logger.info(f"Successfully retrieved entity by ID: {entity.title} (ID: {entity.id})")
-                                return entity
-                        except Exception as e3:
-                            logger.error(f"Error getting entity by ID: {str(e3)}")
-                        raise e2
+                    logger.error(f"Error getting entity: {str(e)}")
+                    raise e
             
             # Run the async function in the event loop with timeout
             try:
@@ -107,21 +89,7 @@ def send_message():
                 logger.info(f"Successfully retrieved community: {community.title} (ID: {community.id})")
             except asyncio.TimeoutError:
                 logger.error("Timeout while getting community entity")
-                # 尝试使用群组ID作为备选方案
-                try:
-                    group_id = os.getenv('TELEGRAM_DEFAULT_GROUP')
-                    if group_id:
-                        logger.info(f"Attempting to get entity by ID after timeout: {group_id}")
-                        community = asyncio.run_coroutine_threadsafe(
-                            client.get_entity(int(group_id)), 
-                            main_loop
-                        ).result(timeout=10)
-                        logger.info(f"Successfully retrieved community by ID: {community.title} (ID: {community.id})")
-                    else:
-                        raise Exception("No group ID available")
-                except Exception as e:
-                    logger.error(f"Failed to get community by ID: {str(e)}")
-                    return jsonify({'error': 'Timeout while getting community information'}), 500
+                return jsonify({'error': 'Timeout while getting community information'}), 500
         except Exception as e:
             logger.error(f"Failed to get community entity: {str(e)}")
             return jsonify({'error': f'Failed to get community: {str(e)}'}), 500
