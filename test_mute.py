@@ -29,15 +29,27 @@ async def get_user_from_group(client, group_username, username):
         logger.info(f"Found group: {group.title} (ID: {group.id})")
         
         # 获取群组成员
+        logger.info("开始获取群组成员列表...")
+        member_count = 0
         async for member in client.iter_participants(group):
+            member_count += 1
+            if member_count % 100 == 0:
+                logger.info(f"已处理 {member_count} 个成员...")
+            
+            # 检查用户名是否匹配（不区分大小写）
             if member.username and member.username.lower() == username.lower():
-                logger.info(f"Found user: {member.first_name} (ID: {member.id}, Username: {member.username})")
+                logger.info(f"找到用户: {member.first_name} (ID: {member.id}, Username: {member.username})")
+                return member
+            # 检查显示名称是否匹配
+            elif member.first_name and member.first_name.lower() == username.lower():
+                logger.info(f"通过显示名称找到用户: {member.first_name} (ID: {member.id}, Username: {member.username})")
                 return member
                 
-        logger.error(f"User {username} not found in group {group_username}")
+        logger.info(f"群组总成员数: {member_count}")
+        logger.error(f"未在群组中找到用户 {username}")
         return None
     except Exception as e:
-        logger.error(f"Error getting user from group: {str(e)}")
+        logger.error(f"获取群组用户时出错: {str(e)}")
         return None
 
 async def test_mute_user(client, username):

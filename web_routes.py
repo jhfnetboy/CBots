@@ -115,34 +115,50 @@ def send_message():
                 
                 # Send message to topic
                 try:
-                    # 尝试使用 reply_to 参数
+                    # 首先尝试直接发送消息
+                    logger.info("尝试直接发送消息...")
                     response = await client.send_message(
                         community,
-                        message,
-                        reply_to=topic_id
+                        message
                     )
-                    logger.info(f"Message sent successfully! Message ID: {response.id}")
+                    logger.info(f"消息发送成功! 消息ID: {response.id}")
                     return {'success': True, 'message_id': response.id}
                 except Exception as e:
-                    logger.error(f"Error in send_message API call: {str(e)}")
-                    logger.error(f"Error type: {type(e)}")
-                    # 尝试不使用 reply_to 参数
+                    logger.error(f"直接发送消息失败: {str(e)}")
+                    logger.error(f"错误类型: {type(e)}")
+                    
+                    # 尝试使用 reply_to 参数
                     try:
-                        logger.info("Retrying without reply_to parameter")
+                        logger.info("尝试使用 reply_to 参数发送消息...")
                         response = await client.send_message(
                             community,
-                            message
+                            message,
+                            reply_to=topic_id
                         )
-                        logger.info(f"Message sent successfully! Message ID: {response.id}")
+                        logger.info(f"消息发送成功! 消息ID: {response.id}")
                         return {'success': True, 'message_id': response.id}
                     except Exception as e2:
-                        logger.error(f"Error in second attempt: {str(e2)}")
-                        raise e2
+                        logger.error(f"使用 reply_to 参数发送消息失败: {str(e2)}")
+                        logger.error(f"错误类型: {type(e2)}")
+                        
+                        # 尝试使用群组ID
+                        try:
+                            logger.info(f"尝试使用群组ID发送消息... (ID: {community.id})")
+                            response = await client.send_message(
+                                community.id,
+                                message
+                            )
+                            logger.info(f"消息发送成功! 消息ID: {response.id}")
+                            return {'success': True, 'message_id': response.id}
+                        except Exception as e3:
+                            logger.error(f"使用群组ID发送消息失败: {str(e3)}")
+                            logger.error(f"错误类型: {type(e3)}")
+                            raise e3
                 
             except Exception as e:
-                logger.error(f"Error sending message: {str(e)}")
-                logger.error(f"Error type: {type(e)}")
-                logger.error(f"Error details: {str(e)}")
+                logger.error(f"发送消息时出错: {str(e)}")
+                logger.error(f"错误类型: {type(e)}")
+                logger.error(f"错误详情: {str(e)}")
                 return {'error': str(e)}
         
         if scheduled_time:
