@@ -18,7 +18,7 @@ web_bp = Blueprint('web', __name__)
 main_loop = None
 
 # Version
-VERSION = "0.23.7"
+VERSION = "0.23.8"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -39,6 +39,8 @@ def send_message():
         channel_input = data.get('channel_id')  # 格式: Account_Abstraction_Community/18472
         scheduled_time = data.get('scheduled_time')
         
+        logger.info(f"Received request - Message: {message}, Channel: {channel_input}")
+        
         if not message or not channel_input:
             return jsonify({'error': 'Missing message or channel input'}), 400
             
@@ -46,11 +48,17 @@ def send_message():
         try:
             # 从 Account_Abstraction_Community/18472 格式中提取数字
             parts = str(channel_input).split('/')
+            logger.info(f"Split channel input into parts: {parts}")
+            
             if len(parts) < 2:
                 raise ValueError("Invalid format")
             channel_number = parts[-1].strip()
-            channel_id = int(f"-100{channel_number}")  # 添加-100前缀
-            logger.info(f"Extracted channel ID: {channel_id}")
+            logger.info(f"Extracted channel number: {channel_number}")
+            
+            # 尝试不同的ID格式
+            channel_id = int(channel_number)  # 原始ID
+            channel_id_with_prefix = int(f"-100{channel_number}")  # 带-100前缀的ID
+            logger.info(f"Channel ID formats - Original: {channel_id}, With prefix: {channel_id_with_prefix}")
         except (IndexError, ValueError) as e:
             logger.error(f"Failed to extract channel ID: {str(e)}")
             return jsonify({'error': 'Invalid channel input format. Please use format: Account_Abstraction_Community/18472'}), 400
@@ -64,10 +72,32 @@ def send_message():
         # Create async task for sending message
         async def send_async():
             try:
-                # 使用InputPeerChannel获取实体
-                peer = InputPeerChannel(channel_id=channel_id, access_hash=0)
-                entity = await client.get_entity(peer)
-                logger.info(f"Successfully got entity for channel {channel_id}")
+                # 尝试不同的方法获取实体
+                try:
+                    # 方法1: 使用原始ID
+                    logger.info(f"Attempting to get entity with original ID: {channel_id}")
+                    peer = PeerChannel(channel_id=channel_id)
+                    entity = await client.get_entity(peer)
+                    logger.info(f"Successfully got entity using original ID: {channel_id}")
+                except Exception as e1:
+                    logger.error(f"Failed to get entity with original ID: {str(e1)}")
+                    try:
+                        # 方法2: 使用带前缀的ID
+                        logger.info(f"Attempting to get entity with prefixed ID: {channel_id_with_prefix}")
+                        peer = PeerChannel(channel_id=channel_id_with_prefix)
+                        entity = await client.get_entity(peer)
+                        logger.info(f"Successfully got entity using prefixed ID: {channel_id_with_prefix}")
+                    except Exception as e2:
+                        logger.error(f"Failed to get entity with prefixed ID: {str(e2)}")
+                        try:
+                            # 方法3: 使用InputPeerChannel
+                            logger.info(f"Attempting to get entity with InputPeerChannel: {channel_id}")
+                            peer = InputPeerChannel(channel_id=channel_id, access_hash=0)
+                            entity = await client.get_entity(peer)
+                            logger.info(f"Successfully got entity using InputPeerChannel: {channel_id}")
+                        except Exception as e3:
+                            logger.error(f"Failed to get entity with InputPeerChannel: {str(e3)}")
+                            raise
                 
                 # Send message using the entity
                 await client.send_message(entity, message)
