@@ -65,10 +65,10 @@ def setup_handlers(client):
         logger.info(f"Received message: {event.message.text} from {event.sender_id} in chat {event.chat_id}")
         await bot_handlers.handle_message(event, command_manager)
 
-    @client.on(events.ChatAction)
+    @client.on(events.NewMessage(func=lambda e: e.message and e.message.action and isinstance(e.message.action, MessageActionChatAddUser)))
     async def handle_new_member(event):
         # Log chat actions
-        logger.info(f"Chat action: {event.action_message} in chat {event.chat_id}")
+        logger.info(f"New member joined: {event.message.action.users[0]} in chat {event.chat_id}")
         await bot_handlers.handle_new_member(event, client)
 
     @client.on(events.NewMessage(func=lambda e: e.is_private))
@@ -83,8 +83,11 @@ def run_flask(client):
     init_web_routes(app, client)
     init_twitter_routes(app)
     
+    # Create and set event loop for this thread
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     # Set the main event loop for both web and twitter routes
-    loop = asyncio.get_event_loop()
     set_main_loop(loop)
     web_routes.set_main_loop(loop)
     twitter_routes.set_main_loop(loop)

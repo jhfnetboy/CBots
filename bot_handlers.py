@@ -92,11 +92,14 @@ class BotHandlers:
         """Handle new member joined event"""
         try:
             # Check if this is a user join event
-            if not hasattr(event, 'action') or not isinstance(event.action, MessageActionChatAddUser):
+            if not hasattr(event, 'message') or not hasattr(event.message, 'action'):
+                return
+                
+            if not isinstance(event.message.action, MessageActionChatAddUser):
                 return
                 
             # Get the new member from the action
-            new_member_id = event.action.users[0]
+            new_member_id = event.message.action.users[0]
             logger.info(f"New member joined: {new_member_id}")
             
             # Get chat information
@@ -136,6 +139,7 @@ class BotHandlers:
             
         except Exception as e:
             logger.error(f"Error handling new member: {str(e)}")
+            logger.error(f"Event details: {event}")
 
     async def handle_private_message(self, event, client):
         """Handle private messages"""
