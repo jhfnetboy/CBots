@@ -57,18 +57,37 @@ def index():
     """Root endpoint"""
     return render_template('telegram.html')
 
-@app.route('/send_message', methods=['POST'])
+@app.route('/api/send_message', methods=['POST'])
 async def send_message():
     """Send message endpoint"""
     try:
         data = await request.get_json()
         message = data.get('message')
-        chat_id = data.get('chat_id')
+        channel_id = data.get('channel_id')
+        scheduled_time = data.get('scheduled_time')
         
-        if not message or not chat_id:
-            return jsonify({'error': 'Missing message or chat_id'}), 400
+        if not message or not channel_id:
+            return jsonify({'error': 'Missing message or channel_id'}), 400
         
         client = app.config['client']
+        
+        # Get actual chat ID from environment variable
+        chat_id = os.getenv(channel_id)
+        if not chat_id:
+            return jsonify({'error': f'Channel ID {channel_id} not found'}), 404
+            
+        # Log the message
+        logger.info(f"Sending message to channel {channel_id}: {message}")
+        
+        if scheduled_time:
+            # Handle scheduled message
+            scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
+            now = datetime.now()
+            delay = (scheduled_datetime - now).total_seconds()
+            
+            if delay > 0:
+                await asyncio.sleep(delay)
+                
         await client.send_message(chat_id, message)
         return jsonify({'status': 'success'}), 200
     except Exception as e:
@@ -80,14 +99,20 @@ def setup_handlers(client):
     
     @client.on(events.NewMessage)
     async def handle_message(event):
+        # Log all incoming messages
+        logger.info(f"Received message: {event.message.text} from {event.sender_id} in chat {event.chat_id}")
         await bot_handlers.handle_message(event, command_manager)
 
     @client.on(events.ChatAction)
     async def handle_new_member(event):
+        # Log chat actions
+        logger.info(f"Chat action: {event.action_message} in chat {event.chat_id}")
         await bot_handlers.handle_new_member(event, client)
 
     @client.on(events.NewMessage(func=lambda e: e.is_private))
     async def handle_private_message(event):
+        # Log private messages
+        logger.info(f"Private message: {event.message.text} from {event.sender_id}")
         await bot_handlers.handle_private_message(event, client)
 
 def run_flask(client):
