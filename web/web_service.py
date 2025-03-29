@@ -1,10 +1,6 @@
 import logging
 from flask import Flask, render_template, request, jsonify
-import asyncio
-from telegram_api import TelegramAPI
-from twitter_api import TwitterAPI
-import threading
-import nest_asyncio
+import requests
 
 # Configure logging
 logging.basicConfig(
@@ -16,23 +12,12 @@ logger = logging.getLogger(__name__)
 # Version
 VERSION = "0.23.6"
 
-# 允许嵌套事件循环
-nest_asyncio.apply()
-
-def run_async(coro):
-    """在单独的线程中运行异步函数"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
+# Bot API 配置
+BOT_API_URL = "http://127.0.0.1:8871"
 
 class WebService:
-    def __init__(self, telegram_api, twitter_api):
+    def __init__(self):
         self.app = Flask(__name__)
-        self.telegram_api = telegram_api
-        self.twitter_api = twitter_api
         self.setup_routes()
         
     def setup_routes(self):
@@ -53,19 +38,16 @@ class WebService:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                result = run_async(
-                    self.telegram_api.send_message(
-                        data['message'],
-                        data.get('channel'),
-                        data.get('topic_id'),
-                        data.get('scheduled_time')
-                    )
+                # 调用 bot API
+                response = requests.post(
+                    f"{BOT_API_URL}/api/telegram/send_message",
+                    json=data
                 )
                 
-                if 'error' in result:
-                    return jsonify(result), 500
+                if response.status_code != 200:
+                    return jsonify(response.json()), response.status_code
                     
-                return jsonify(result)
+                return jsonify(response.json())
             except Exception as e:
                 logging.error(f"Error sending message: {str(e)}")
                 return jsonify({'error': str(e)}), 500
@@ -73,10 +55,13 @@ class WebService:
         @self.app.route('/api/status', methods=['GET'])
         def get_status():
             try:
-                result = run_async(
-                    self.telegram_api.get_status()
-                )
-                return jsonify(result)
+                # 调用 bot API
+                response = requests.get(f"{BOT_API_URL}/api/telegram/status")
+                
+                if response.status_code != 200:
+                    return jsonify(response.json()), response.status_code
+                    
+                return jsonify(response.json())
             except Exception as e:
                 logging.error(f"Error getting status: {str(e)}")
                 return jsonify({'error': str(e)}), 500
@@ -93,20 +78,16 @@ class WebService:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                result = run_async(
-                    self.twitter_api.send_tweet(
-                        data['message'],
-                        data.get('scheduled_time')
-                    )
+                # 调用 bot API
+                response = requests.post(
+                    f"{BOT_API_URL}/api/twitter/send_tweet",
+                    json=data
                 )
                 
-                if 'error' in result:
-                    return jsonify(result), 500
+                if response.status_code != 200:
+                    return jsonify(response.json()), response.status_code
                     
-                if result.get('status') == 'scheduled':
-                    return jsonify(result)
-                    
-                return jsonify(result)
+                return jsonify(response.json())
             except Exception as e:
                 logging.error(f"Error sending tweet: {str(e)}")
                 return jsonify({'error': str(e)}), 500
@@ -114,10 +95,13 @@ class WebService:
         @self.app.route('/api/twitter/status', methods=['GET'])
         def get_twitter_status():
             try:
-                result = run_async(
-                    self.twitter_api.get_status()
-                )
-                return jsonify(result)
+                # 调用 bot API
+                response = requests.get(f"{BOT_API_URL}/api/twitter/status")
+                
+                if response.status_code != 200:
+                    return jsonify(response.json()), response.status_code
+                    
+                return jsonify(response.json())
             except Exception as e:
                 logging.error(f"Error getting Twitter status: {str(e)}")
                 return jsonify({'error': str(e)}), 500

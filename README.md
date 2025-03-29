@@ -422,3 +422,13 @@ project/
 │   ├── web_service.py
 │   └── templates/
 └── requirements.txt
+
+
+Bot 服务（端口 8871）：
+处理 Telegram 和 Twitter 的核心功能
+提供 HTTP API 接口
+在独立的事件循环中运行
+Web 服务（端口 8872）：
+提供网页界面
+通过 HTTP 调用 Bot 服务的 API
+不直接处理 Telegram 和 Twitter 功能

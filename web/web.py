@@ -1,7 +1,5 @@
 import logging
 from web_service import WebService
-from telegram_api import TelegramAPI
-from twitter_api import TwitterAPI
 
 # Configure logging
 logging.basicConfig(
@@ -13,12 +11,8 @@ logger = logging.getLogger(__name__)
 def main():
     """启动Web服务"""
     try:
-        # 初始化API客户端
-        telegram_api = TelegramAPI()
-        twitter_api = TwitterAPI()
-        
         # 初始化Web服务
-        web_service = WebService(telegram_api, twitter_api)
+        web_service = WebService()
         
         # 启动Web服务
         logger.info("Starting web service...")

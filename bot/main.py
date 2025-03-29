@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import threading
 from telegram_core import TelegramCore
 from twitter_core import TwitterCore
+from api import BotAPI
 
 # Configure logging
 logging.basicConfig(
@@ -9,6 +11,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def run_api(telegram_core, twitter_core):
+    """在单独的线程中运行API服务"""
+    api = BotAPI(telegram_core, twitter_core)
+    api.run()
 
 async def main():
     """启动所有机器人服务"""
@@ -26,6 +33,14 @@ async def main():
             return
             
         logger.info("All services started successfully")
+        
+        # 在单独的线程中启动API服务
+        api_thread = threading.Thread(
+            target=run_api,
+            args=(telegram_core, twitter_core)
+        )
+        api_thread.daemon = True
+        api_thread.start()
         
         # 保持服务运行
         while True:
