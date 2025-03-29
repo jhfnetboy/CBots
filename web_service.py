@@ -1,9 +1,6 @@
 import logging
 from flask import Flask, render_template, request, jsonify
-import requests
-from datetime import datetime
 import asyncio
-import threading
 from telegram_api import TelegramAPI
 from twitter_api import TwitterAPI
 
@@ -14,37 +11,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
 # Version
-VERSION = "0.23.2"
-
-# API configuration
-API_BASE_URL = "http://127.0.0.1:5000/api"
-
-def run_async(coro):
-    """Run coroutine in a new event loop"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
-
-@app.route('/')
-def index():
-    """Root endpoint"""
-    return render_template('telegram.html', version=VERSION)
-
-@app.route('/twitter')
-def twitter():
-    """Twitter bot page"""
-    return render_template('twitter.html', version=VERSION)
-
-@app.route('/telegram')
-def telegram():
-    """Telegram bot page"""
-    return render_template('telegram.html', version=VERSION)
+VERSION = "0.23.3"
 
 class WebService:
     def __init__(self, telegram_api, twitter_api):
@@ -77,12 +45,20 @@ class WebService:
                 
                 # 运行异步函数
                 result = loop.run_until_complete(
-                    self.telegram_api.send_message(data['message'])
+                    self.telegram_api.send_message(
+                        data['message'],
+                        data.get('channel'),
+                        data.get('topic_id'),
+                        data.get('scheduled_time')
+                    )
                 )
                 
                 # 关闭事件循环
                 loop.close()
                 
+                if 'error' in result:
+                    return jsonify(result), 500
+                    
                 return jsonify(result)
             except Exception as e:
                 logging.error(f"Error sending message: {str(e)}")
@@ -137,6 +113,9 @@ class WebService:
                 
                 if 'error' in result:
                     return jsonify(result), 500
+                    
+                if result.get('status') == 'scheduled':
+                    return jsonify(result)
                     
                 return jsonify({
                     'success': True,

@@ -83,10 +83,34 @@ class TwitterCore:
                 
                 # 计算延迟时间
                 delay = (scheduled_datetime - now).total_seconds()
+                
+                # 计算天、小时、分钟
+                days = int(delay // (24 * 3600))
+                hours = int((delay % (24 * 3600)) // 3600)
+                minutes = int((delay % 3600) // 60)
+                
+                # 构建提示信息
+                timing_info = []
+                if days > 0:
+                    timing_info.append(f"{days}天")
+                if hours > 0:
+                    timing_info.append(f"{hours}小时")
+                if minutes > 0:
+                    timing_info.append(f"{minutes}分钟")
+                
+                timing_str = "".join(timing_info)
                 logger.info(f"Scheduling tweet for {scheduled_datetime} (delay: {delay}s)")
-                await asyncio.sleep(delay)
+                
+                # 创建后台任务发送推文
+                asyncio.create_task(self._send_scheduled_tweet(message, delay))
+                
+                return {
+                    "status": "scheduled",
+                    "message": f"Tweet scheduled successfully. Will be sent in {timing_str}",
+                    "scheduled_time": scheduled_datetime.isoformat()
+                }
             
-            # 使用 v2 API 发送推文
+            # 立即发送推文
             response = self.client.create_tweet(text=message)
             tweet_id = response.data['id']
             
@@ -102,6 +126,26 @@ class TwitterCore:
         except Exception as e:
             logger.error(f"Error sending tweet: {e}", exc_info=True)
             raise
+
+    async def _send_scheduled_tweet(self, message: str, delay: float):
+        """后台任务：发送定时推文"""
+        try:
+            await asyncio.sleep(delay)
+            
+            # 发送推文
+            response = self.client.create_tweet(text=message)
+            tweet_id = response.data['id']
+            
+            # 获取用户信息以构建推文URL
+            me = self.client.get_me()
+            username = me.data.username
+            
+            # 构建推文URL
+            tweet_url = f"https://twitter.com/{username}/status/{tweet_id}"
+            logger.info(f"Scheduled tweet sent successfully. URL: {tweet_url}")
+            
+        except Exception as e:
+            logger.error(f"Error sending scheduled tweet: {e}", exc_info=True)
 
     async def get_status(self):
         """获取 Twitter 服务状态"""
