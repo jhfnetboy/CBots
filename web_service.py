@@ -13,14 +13,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version
-VERSION = "0.23.4"
+VERSION = "0.23.5"
 
 class WebService:
     def __init__(self, telegram_api, twitter_api):
         self.app = Flask(__name__)
         self.telegram_api = telegram_api
         self.twitter_api = twitter_api
-        self.loop = None
         self.setup_routes()
         
     def setup_routes(self):
@@ -41,13 +40,9 @@ class WebService:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                # 使用共享的事件循环
-                if not self.loop:
-                    self.loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(self.loop)
-                
-                # 运行异步函数
-                result = self.loop.run_until_complete(
+                # 使用主事件循环
+                loop = asyncio.get_event_loop()
+                result = loop.run_until_complete(
                     self.telegram_api.send_message(
                         data['message'],
                         data.get('channel'),
@@ -67,13 +62,9 @@ class WebService:
         @self.app.route('/api/status', methods=['GET'])
         def get_status():
             try:
-                # 使用共享的事件循环
-                if not self.loop:
-                    self.loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(self.loop)
-                
-                # 运行异步函数
-                result = self.loop.run_until_complete(
+                # 使用主事件循环
+                loop = asyncio.get_event_loop()
+                result = loop.run_until_complete(
                     self.telegram_api.get_status()
                 )
                 
@@ -94,13 +85,9 @@ class WebService:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                # 使用共享的事件循环
-                if not self.loop:
-                    self.loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(self.loop)
-                
-                # 运行异步函数
-                result = self.loop.run_until_complete(
+                # 使用主事件循环
+                loop = asyncio.get_event_loop()
+                result = loop.run_until_complete(
                     self.twitter_api.send_tweet(
                         data['message'],
                         data.get('scheduled_time')
@@ -125,13 +112,9 @@ class WebService:
         @self.app.route('/api/twitter/status', methods=['GET'])
         def get_twitter_status():
             try:
-                # 使用共享的事件循环
-                if not self.loop:
-                    self.loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(self.loop)
-                
-                # 运行异步函数
-                result = self.loop.run_until_complete(
+                # 使用主事件循环
+                loop = asyncio.get_event_loop()
+                result = loop.run_until_complete(
                     self.twitter_api.get_status()
                 )
                 

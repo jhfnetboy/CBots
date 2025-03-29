@@ -12,45 +12,42 @@ class MessageHandlers:
         self.VERSION = "0.23.2"  # 更新版本号
 
     async def handle_new_member(self, event):
-        """Handle new member joined event"""
+        """Handle new member event"""
         try:
-            new_member = event.user
+            # 获取新成员信息
+            new_member = event.new_participant
             if not new_member:
-                logger.warning("No new member found in event")
                 return
             
-            chat = await event.get_chat()
-            logger.info(f"New member {new_member.first_name} (ID: {new_member.id}) joined group {chat.title}")
+            # 获取用户信息
+            user = await event.get_input_chat()
+            username = getattr(user, 'username', None) or 'User'
             
-            # 永久禁言新成员
+            # 构建欢迎消息
+            welcome_message = (
+                f"Welcome {username} to the group!\n\n"
+                f"To maintain group order, new members are muted.\n"
+                f"Today's unmute password is: {self.daily_password}\n\n"
+                f"Please send the daily password to the bot in private chat to unmute yourself."
+            )
+            
+            # 发送欢迎消息
+            await event.reply(welcome_message)
+            
+            # 禁言新成员
             try:
-                await self.client.edit_permissions(
-                    chat,
-                    new_member.id,
-                    until_date=None,  # 设置为 None 表示永久禁言
-                    send_messages=False,
-                    send_media=False,
-                    send_stickers=False,
-                    send_gifs=False,
-                    send_games=False
+                await event.client.edit_permissions(
+                    event.chat_id,
+                    new_member,
+                    until_date=None,
+                    send_messages=False
                 )
-                logger.info(f"Successfully muted new member {new_member.first_name} permanently")
-                
-                # 发送欢迎消息
-                welcome_message = (
-                    f"欢迎 {new_member.first_name} 加入群组！\n"
-                    "为了维护群组秩序，新成员将被禁言。\n"
-                    f"今日解禁密码是：{self.daily_password}\n"
-                    "请私聊机器人并发送每日密码以解除禁言。"
-                )
-                await event.reply(welcome_message)
-                logger.info(f"Sent welcome message to {new_member.first_name}")
-                
+                logger.info(f"Successfully muted new member: {username}")
             except Exception as e:
-                logger.error(f"Error muting new member: {str(e)}")
-                
+                logger.error(f"Error muting new member: {e}")
+            
         except Exception as e:
-            logger.error(f"Error handling new member: {str(e)}")
+            logger.error(f"Error handling new member: {e}")
 
     async def handle_private_message(self, event):
         """Handle private messages"""

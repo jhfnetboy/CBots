@@ -92,13 +92,13 @@ class TwitterCore:
                 # 构建提示信息
                 timing_info = []
                 if days > 0:
-                    timing_info.append(f"{days}天")
+                    timing_info.append(f"{days} days ")
                 if hours > 0:
-                    timing_info.append(f"{hours}小时")
+                    timing_info.append(f"{hours} hours ")
                 if minutes > 0:
-                    timing_info.append(f"{minutes}分钟")
+                    timing_info.append(f"{minutes} minutes")
                 
-                timing_str = "".join(timing_info)
+                timing_str = "".join(timing_info).strip()
                 logger.info(f"Scheduling tweet for {scheduled_datetime} (delay: {delay}s)")
                 
                 # 创建后台任务发送推文
