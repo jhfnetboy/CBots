@@ -162,7 +162,7 @@ class TelegramCore:
                 )
                 
             return {
-                "success": True,
+                "status": "success",
                 "message": "Message sent successfully",
                 "message_id": response.id
             }

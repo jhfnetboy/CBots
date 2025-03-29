@@ -22,6 +22,7 @@ class TwitterCore:
         self.is_running = False
         self._loop = None
         self._scheduled_tasks = set()
+        self._last_scheduled_tweet = None
         logger.info("TwitterCore initialized")
 
     async def start(self):
@@ -69,9 +70,12 @@ class TwitterCore:
             logger.info(f"Attempting to send tweet: {message}")
             
             if scheduled_time:
-                # 解析计划时间
+                # 解析计划时间并确保使用UTC
                 scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
-                now = datetime.utcnow()
+                if scheduled_datetime.tzinfo is None:
+                    scheduled_datetime = scheduled_datetime.replace(tzinfo=datetime.timezone.utc)
+                
+                now = datetime.now(datetime.timezone.utc)
                 
                 if scheduled_datetime <= now:
                     return {"error": "Scheduled time must be in the future"}
@@ -104,7 +108,8 @@ class TwitterCore:
                 return {
                     "status": "scheduled",
                     "message": f"Tweet scheduled successfully. Will be sent in {timing_str}",
-                    "scheduled_time": scheduled_datetime.isoformat()
+                    "scheduled_time": scheduled_datetime.isoformat(),
+                    "delay": delay
                 }
             
             # 立即发送推文
@@ -118,7 +123,11 @@ class TwitterCore:
             # 构建推文URL
             tweet_url = f"https://twitter.com/{username}/status/{tweet_id}"
             logger.info(f"Tweet sent successfully. URL: {tweet_url}")
-            return tweet_url
+            return {
+                "status": "success",
+                "message": "Tweet sent successfully",
+                "tweet_url": tweet_url
+            }
             
         except Exception as e:
             logger.error(f"Error sending tweet: {e}", exc_info=True)
@@ -141,8 +150,19 @@ class TwitterCore:
             tweet_url = f"https://twitter.com/{username}/status/{tweet_id}"
             logger.info(f"Scheduled tweet sent successfully. URL: {tweet_url}")
             
+            # 更新状态
+            self._last_scheduled_tweet = {
+                "status": "success",
+                "message": "Scheduled tweet sent successfully",
+                "tweet_url": tweet_url
+            }
+            
         except Exception as e:
             logger.error(f"Error sending scheduled tweet: {e}", exc_info=True)
+            self._last_scheduled_tweet = {
+                "status": "error",
+                "message": str(e)
+            }
             
     async def get_status(self) -> dict:
         """获取服务状态"""

@@ -106,11 +106,7 @@ class WebService:
                 if result.get('status') == 'scheduled':
                     return jsonify(result)
                     
-                return jsonify({
-                    'success': True,
-                    'message': 'Tweet sent successfully',
-                    'tweet_url': result
-                })
+                return jsonify(result)
             except Exception as e:
                 logging.error(f"Error sending tweet: {str(e)}")
                 return jsonify({'error': str(e)}), 500
