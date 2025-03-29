@@ -50,12 +50,25 @@ class TelegramCore:
             # 启动每日密码发送任务
             asyncio.create_task(self.start_daily_verification())
             
+            # 发送上线消息
+            await self.send_online_message()
+            
             logger.info("Telegram core service started successfully")
         except Exception as e:
             logger.error(f"Error starting Telegram core service: {e}", exc_info=True)
             if self.client:
                 await self.client.disconnect()
             raise
+
+    async def send_online_message(self):
+        """Send online message to the group"""
+        try:
+            if self.target_group:
+                message = f"🤖 Bot is now online!\n\n今日新用户解禁密码是：{self.daily_password}"
+                await self.send_message(self.target_group, message)
+                logger.info("Online message sent successfully")
+        except Exception as e:
+            logger.error(f"Error sending online message: {str(e)}")
 
     def setup_handlers(self):
         """Set up event handlers"""
@@ -149,6 +162,55 @@ class TelegramCore:
                     logger.info(f"Sent daily password to user {event.sender_id}")
                 except Exception as e:
                     logger.error(f"Error handling pass command: {str(e)}")
+
+            # 注册所有消息处理器
+            @self.client.on(events.NewMessage)
+            async def message_handler(event):
+                try:
+                    # 获取消息信息
+                    message_text = event.message.text
+                    sender = await event.get_sender()
+                    username = sender.username if sender else "user"
+                    chat = await event.get_chat()
+                    chat_title = chat.title if chat else "unknown chat"
+                    
+                    # 记录所有消息
+                    logger.info(f"Message from {username} in {chat_title}: {message_text}")
+                    
+                    # 处理 @ 提及
+                    if hasattr(event.message, 'mentioned') and event.message.mentioned:
+                        await event.reply(f"Hi {username}, I get your message: {message_text}")
+                        return
+                    
+                    # 处理命令
+                    if message_text.startswith('/'):
+                        if message_text.lower() == '/hi':
+                            await event.reply("Hi, my friends，this is COS72 Bot。")
+                        elif message_text.lower() == '/help':
+                            help_text = (
+                                "Available commands:\n"
+                                "/start - Start the bot\n"
+                                "/help - Show this help message\n"
+                                "/hi - Say hello\n"
+                                "/content - Content management\n"
+                                "/price - Price information\n"
+                                "/event - Event management\n"
+                                "/task - Task management\n"
+                                "/news - News updates\n"
+                                "/PNTs - PNTs information\n"
+                                "/account - Account management"
+                            )
+                            await event.reply(help_text)
+                        elif message_text.lower() == '/pass':
+                            if event.is_private:
+                                await event.reply(f"今日密码：{self.daily_password}")
+                            else:
+                                await event.reply("请私聊机器人获取密码。")
+                        else:
+                            await event.reply(f"Hi {username}, you invoke function: {message_text[1:]}")
+                    
+                except Exception as e:
+                    logger.error(f"Error handling message: {str(e)}")
 
             logger.info("Event handlers set up successfully")
         except Exception as e:
