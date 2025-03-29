@@ -26,7 +26,7 @@ async def run_telegram_core():
         await core.start()
         
         # Initialize API with Telegram core
-        telegram_api = TelegramAPI()
+        telegram_api = TelegramAPI(core)  # 传入已初始化的 core
         await telegram_api.start()
         
         return telegram_api
@@ -43,7 +43,7 @@ async def run_twitter_core():
         await core.start()
         
         # Initialize API with Twitter core
-        twitter_api = TwitterAPI()
+        twitter_api = TwitterAPI(core)  # 传入已初始化的 core
         await twitter_api.start()
         
         return twitter_api

@@ -6,8 +6,8 @@ from telegram_core import TelegramCore
 logger = logging.getLogger(__name__)
 
 class TelegramAPI:
-    def __init__(self):
-        self.core = TelegramCore()
+    def __init__(self, core: TelegramCore = None):
+        self.core = core or TelegramCore()
         self.is_running = False
 
     async def send_message(self, message: str, channel: str = None, topic_id: int = None, scheduled_time: str = None):
@@ -60,7 +60,8 @@ class TelegramAPI:
     async def start(self):
         """启动 Telegram API 服务"""
         try:
-            await self.core.start()
+            if not self.core.client:
+                await self.core.start()
             self.is_running = True
             return {"status": "success", "message": "Telegram API service started"}
             

@@ -135,7 +135,14 @@ class WebService:
                 # 关闭事件循环
                 loop.close()
                 
-                return jsonify(result)
+                if 'error' in result:
+                    return jsonify(result), 500
+                    
+                return jsonify({
+                    'success': True,
+                    'message': 'Tweet sent successfully',
+                    'tweet_url': result
+                })
             except Exception as e:
                 logging.error(f"Error sending tweet: {str(e)}")
                 return jsonify({'error': str(e)}), 500

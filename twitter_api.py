@@ -6,8 +6,8 @@ from twitter_core import TwitterCore
 logger = logging.getLogger(__name__)
 
 class TwitterAPI:
-    def __init__(self):
-        self.core = TwitterCore()
+    def __init__(self, core: TwitterCore = None):
+        self.core = core or TwitterCore()
         self.is_running = False
 
     async def send_tweet(self, message: str, scheduled_time: str = None):
@@ -42,7 +42,8 @@ class TwitterAPI:
     async def start(self):
         """启动 Twitter API 服务"""
         try:
-            await self.core.start()
+            if not self.core.client:
+                await self.core.start()
             self.is_running = True
             return {"status": "success", "message": "Twitter API service started"}
             
