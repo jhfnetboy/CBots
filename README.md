@@ -385,3 +385,6 @@ Web 服务通过本地 API 与核心服务通信
 at bot 的消息都要回复：Hi，dear username，I got your message：原消息信息
 增加/version命令：返回当前版本号
 每次更新都要递增：当前版本0.23.1，下一个版本0.23.2
+
+### 0.23.3
+Twitter定时发送消息，点击发送后（如果设置了实际），应该页面提示类似消息：Tweet scheduled successfully. Will be sent in 1小时30分钟，然后等触发发送成功后返回 twitter的url

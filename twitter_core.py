@@ -18,58 +18,53 @@ class TwitterCore:
         self.api_secret = os.getenv('TWITTER_API_SECRET')
         self.access_token = os.getenv('TWITTER_ACCESS_TOKEN')
         self.access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
-        self.bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
         self.client = None
+        self.is_running = False
+        self._loop = None
+        self._scheduled_tasks = set()
         logger.info("TwitterCore initialized")
 
     async def start(self):
-        """Start the Twitter core service"""
+        """启动Twitter客户端"""
         try:
-            logger.info("Starting Twitter core service...")
-            if not all([self.api_key, self.api_secret, self.access_token, self.access_token_secret, self.bearer_token]):
-                missing = []
-                if not self.api_key: missing.append('TWITTER_API_KEY')
-                if not self.api_secret: missing.append('TWITTER_API_SECRET')
-                if not self.access_token: missing.append('TWITTER_ACCESS_TOKEN')
-                if not self.access_token_secret: missing.append('TWITTER_ACCESS_TOKEN_SECRET')
-                if not self.bearer_token: missing.append('TWITTER_BEARER_TOKEN')
-                raise ValueError(f"Missing required Twitter API credentials: {', '.join(missing)}")
-            
-            # 初始化Twitter客户端 (v2)
+            if not self._loop:
+                self._loop = asyncio.get_event_loop()
+                
             self.client = tweepy.Client(
-                bearer_token=self.bearer_token,
                 consumer_key=self.api_key,
                 consumer_secret=self.api_secret,
                 access_token=self.access_token,
                 access_token_secret=self.access_token_secret
             )
             
-            # 测试API连接
-            me = self.client.get_me()
-            logger.info(f"Twitter API credentials verified successfully. Connected as: {me.data.username}")
-            
-            logger.info("Twitter core service started successfully")
+            self.is_running = True
+            logger.info("Twitter service started successfully")
             return True
             
         except Exception as e:
-            logger.error(f"Error starting Twitter core service: {e}", exc_info=True)
-            raise
-
+            logger.error(f"Error starting Twitter service: {e}")
+            return False
+            
     async def stop(self):
-        """Stop the Twitter core service"""
+        """停止Twitter客户端"""
         try:
-            logger.info("Stopping Twitter core service...")
-            logger.info("Twitter core service stopped successfully")
+            # 取消所有定时任务
+            for task in self._scheduled_tasks:
+                task.cancel()
+            self._scheduled_tasks.clear()
+            
+            self.is_running = False
+            logger.info("Twitter service stopped")
+            return True
         except Exception as e:
-            logger.error(f"Error stopping Twitter core service: {e}", exc_info=True)
-            raise
-
-    async def send_tweet(self, message: str, scheduled_time: str = None) -> str:
+            logger.error(f"Error stopping Twitter service: {e}")
+            return False
+            
+    async def send_tweet(self, message: str, scheduled_time: str = None) -> dict:
         """发送推文"""
         try:
-            if not self.client:
-                logger.error("Twitter client not initialized")
-                raise Exception("Twitter client not initialized")
+            if not self.client or not self.is_running:
+                return {"error": "Twitter service is not running"}
                 
             logger.info(f"Attempting to send tweet: {message}")
             
@@ -80,9 +75,14 @@ class TwitterCore:
                 
                 if scheduled_datetime <= now:
                     return {"error": "Scheduled time must be in the future"}
-                
+                    
                 # 计算延迟时间
                 delay = (scheduled_datetime - now).total_seconds()
+                
+                # 创建定时任务
+                task = asyncio.create_task(self._send_scheduled_tweet(message, delay))
+                self._scheduled_tasks.add(task)
+                task.add_done_callback(self._scheduled_tasks.discard)
                 
                 # 计算天、小时、分钟
                 days = int(delay // (24 * 3600))
@@ -97,12 +97,9 @@ class TwitterCore:
                     timing_info.append(f"{hours} hours ")
                 if minutes > 0:
                     timing_info.append(f"{minutes} minutes")
-                
+                    
                 timing_str = "".join(timing_info).strip()
                 logger.info(f"Scheduling tweet for {scheduled_datetime} (delay: {delay}s)")
-                
-                # 创建后台任务发送推文
-                asyncio.create_task(self._send_scheduled_tweet(message, delay))
                 
                 return {
                     "status": "scheduled",
@@ -125,8 +122,8 @@ class TwitterCore:
             
         except Exception as e:
             logger.error(f"Error sending tweet: {e}", exc_info=True)
-            raise
-
+            return {"error": str(e)}
+            
     async def _send_scheduled_tweet(self, message: str, delay: float):
         """后台任务：发送定时推文"""
         try:
@@ -146,20 +143,32 @@ class TwitterCore:
             
         except Exception as e:
             logger.error(f"Error sending scheduled tweet: {e}", exc_info=True)
-
-    async def get_status(self):
-        """获取 Twitter 服务状态"""
-        try:
-            if not self.client:
-                return {"status": "stopped"}
             
+    async def get_status(self) -> dict:
+        """获取服务状态"""
+        try:
+            if not self.client or not self.is_running:
+                return {
+                    "status": "stopped",
+                    "message": "Twitter service is not running"
+                }
+                
+            # 获取用户信息
             me = self.client.get_me()
+            
             return {
                 "status": "running",
+                "message": "Twitter service is running",
                 "username": me.data.username,
-                "timestamp": datetime.now().isoformat()
+                "name": me.data.name,
+                "followers_count": me.data.public_metrics.get('followers_count', 0),
+                "following_count": me.data.public_metrics.get('following_count', 0),
+                "tweet_count": me.data.public_metrics.get('tweet_count', 0)
             }
             
         except Exception as e:
-            logger.error(f"Error getting status: {str(e)}")
-            return {"error": str(e)} 
+            logger.error(f"Error getting Twitter status: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            } 
