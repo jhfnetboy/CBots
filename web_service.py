@@ -2,6 +2,8 @@ import logging
 from flask import Flask, render_template, request, jsonify
 import requests
 from datetime import datetime
+import asyncio
+import threading
 
 # Configure logging
 logging.basicConfig(
@@ -13,10 +15,19 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Version
-VERSION = "0.23.12"
+VERSION = "0.23.2"
 
 # API configuration
 API_BASE_URL = "http://127.0.0.1:5000/api"
+
+def run_async(coro):
+    """Run coroutine in a new event loop"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 @app.route('/')
 def index():

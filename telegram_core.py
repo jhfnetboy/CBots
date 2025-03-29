@@ -56,7 +56,7 @@ class TelegramCore:
             asyncio.create_task(self.start_daily_verification())
             
             # 发送上线消息
-            await self.send_online_message()
+            await self.message_handlers.send_online_message()
             
             logger.info("Telegram core service started successfully")
         except Exception as e:
@@ -64,16 +64,6 @@ class TelegramCore:
             if self.client:
                 await self.client.disconnect()
             raise
-
-    async def send_online_message(self):
-        """Send online message to the group"""
-        try:
-            if self.target_group:
-                message = f"🤖 Bot is now online!\n\n今日新用户解禁密码是：{self.daily_password}"
-                await self.send_message(self.target_group, message)
-                logger.info("Online message sent successfully")
-        except Exception as e:
-            logger.error(f"Error sending online message: {str(e)}")
 
     def setup_handlers(self):
         """Set up event handlers"""

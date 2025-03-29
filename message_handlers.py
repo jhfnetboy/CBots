@@ -40,6 +40,7 @@ class MessageHandlers:
                 welcome_message = (
                     f"欢迎 {new_member.first_name} 加入群组！\n"
                     "为了维护群组秩序，新成员将被禁言。\n"
+                    f"今日解禁密码是：{self.daily_password}\n"
                     "请私聊机器人并发送每日密码以解除禁言。"
                 )
                 await event.reply(welcome_message)
@@ -154,4 +155,18 @@ class MessageHandlers:
                 await self.handle_command(event)
                 
         except Exception as e:
-            logger.error(f"Error handling message: {str(e)}") 
+            logger.error(f"Error handling message: {str(e)}")
+
+    async def send_online_message(self):
+        """Send online message to the group"""
+        try:
+            if self.target_group:
+                message = (
+                    f"🤖 Bot is now online!\n\n"
+                    f"今日新用户解禁密码是：{self.daily_password}\n"
+                    "新用户加入后将被禁言，请私聊机器人发送密码以解除禁言。"
+                )
+                await self.client.send_message(self.target_group, message)
+                logger.info("Online message sent successfully")
+        except Exception as e:
+            logger.error(f"Error sending online message: {str(e)}") 
