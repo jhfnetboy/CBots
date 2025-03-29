@@ -1,127 +1,80 @@
 import logging
-from flask import Flask, request, jsonify
-from functools import wraps
-import os
-from telegram_core import TelegramCore
 import asyncio
 from datetime import datetime
+from telegram_core import TelegramCore
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-telegram_core = None
+class TelegramAPI:
+    def __init__(self):
+        self.core = TelegramCore()
+        self.is_running = False
 
-def check_local_ip(f):
-    """Decorator to check if request is from localhost"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if request.remote_addr not in ['127.0.0.1', 'localhost']:
-            return jsonify({'error': 'Access denied. Only local requests are allowed.'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
-@app.route('/api/send_message', methods=['POST'])
-@check_local_ip
-def send_message():
-    """Send message endpoint"""
-    try:
-        data = request.get_json()
-        channel = data.get('channel')
-        message = data.get('message')
-        scheduled_time = data.get('scheduled_time')
-        
-        logger.info(f"Received send_message request - Channel: {channel}, Message: {message}, Scheduled: {scheduled_time}")
-        
-        if not channel or not message:
-            logger.error("Missing channel or message in request")
-            return jsonify({'error': 'Channel and message are required'}), 400
-            
-        # Extract community name and topic ID from input format: "Account_Abstraction_Community/2817"
+    async def send_message(self, message: str, channel: str = None, topic_id: int = None, scheduled_time: str = None):
+        """发送消息到 Telegram"""
         try:
-            community_name, topic_id = channel.split('/')
-            topic_id = int(topic_id)
-            logger.info(f"Extracted community name: {community_name}, topic ID: {topic_id}")
-        except ValueError as e:
-            logger.error(f"Invalid channel format: {channel}, Error: {str(e)}")
-            return jsonify({'error': 'Invalid channel format. Use format: CommunityName/TopicID'}), 400
+            if not self.is_running:
+                return {"error": "Telegram service is not running"}
             
-        async def send_async():
-            try:
-                # 获取群组实体
-                logger.info(f"Attempting to get entity for community: {community_name}")
-                community = await telegram_core.client.get_entity(community_name)
-                logger.info(f"Found group: {community.title} (ID: {community.id})")
+            if scheduled_time:
+                # 解析计划时间
+                scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
+                now = datetime.utcnow()
                 
-                if scheduled_time:
-                    # Convert scheduled_time to datetime
-                    schedule_dt = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
-                    # Wait until scheduled time
-                    now = datetime.utcnow()
-                    if schedule_dt > now:
-                        delay = (schedule_dt - now).total_seconds()
-                        logger.info(f"Scheduling message for {schedule_dt} (delay: {delay}s)")
-                        await asyncio.sleep(delay)
+                if scheduled_datetime <= now:
+                    return {"error": "Scheduled time must be in the future"}
                 
-                # 发送消息
-                logger.info(f"Attempting to send message to topic {topic_id}")
-                logger.info(f"Message content: {message}")
-                
-                response = await telegram_core.client.send_message(
-                    community,
-                    message,
-                    reply_to=topic_id
-                )
-                logger.info(f"Message sent successfully! Message ID: {response.id}")
-                return {'success': True, 'message_id': response.id}
-                
-            except Exception as e:
-                logger.error(f"Error in send_async: {str(e)}")
-                return {'error': str(e)}
-        
-        if scheduled_time:
-            # Schedule the message
-            loop = asyncio.get_event_loop()
-            future = asyncio.run_coroutine_threadsafe(send_async(), loop)
-            logger.info("Message scheduled successfully")
-            return jsonify({'success': True, 'scheduled': True})
-        else:
-            # Send immediately
-            loop = asyncio.get_event_loop()
-            future = asyncio.run_coroutine_threadsafe(send_async(), loop)
-            response = future.result(timeout=30)
-            if 'error' in response:
-                return jsonify(response), 500
-            return jsonify(response)
+                # 计算延迟时间
+                delay = (scheduled_datetime - now).total_seconds()
+                logger.info(f"Scheduling message for {scheduled_datetime} (delay: {delay}s)")
+                await asyncio.sleep(delay)
             
-    except Exception as e:
-        logger.error(f"Error in send_message: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+            # 发送消息
+            message_id = await self.core.send_message(message, channel, topic_id)
+            return {
+                "status": "success",
+                "message": "Message sent successfully",
+                "message_id": message_id
+            }
+            
+        except Exception as e:
+            logger.error(f"Error sending message: {str(e)}")
+            return {"error": str(e)}
 
-@app.route('/api/status', methods=['GET'])
-@check_local_ip
-def get_status():
-    """Get bot status endpoint"""
-    try:
-        if telegram_core and telegram_core.client:
-            return jsonify({
-                'status': 'running',
-                'daily_password': telegram_core.daily_password
-            })
-        return jsonify({'status': 'not running'})
-    except Exception as e:
-        logger.error(f"Error getting status: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+    async def get_status(self):
+        """获取 Telegram 服务状态"""
+        try:
+            if not self.is_running:
+                return {"status": "stopped"}
+            
+            return {
+                "status": "running",
+                "timestamp": datetime.now().isoformat(),
+                "daily_password": self.core.daily_password
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting status: {str(e)}")
+            return {"error": str(e)}
 
-def init_api(telegram_core_instance):
-    """Initialize API with Telegram core instance"""
-    global telegram_core
-    telegram_core = telegram_core_instance
+    async def start(self):
+        """启动 Telegram API 服务"""
+        try:
+            await self.core.start()
+            self.is_running = True
+            return {"status": "success", "message": "Telegram API service started"}
+            
+        except Exception as e:
+            logger.error(f"Error starting Telegram API service: {str(e)}")
+            return {"error": str(e)}
 
-def run_api(host='127.0.0.1', port=5000):
-    """Run the API server"""
-    app.run(host=host, port=port) 
+    async def stop(self):
+        """停止 Telegram API 服务"""
+        try:
+            await self.core.stop()
+            self.is_running = False
+            return {"status": "success", "message": "Telegram API service stopped"}
+            
+        except Exception as e:
+            logger.error(f"Error stopping Telegram API service: {str(e)}")
+            return {"error": str(e)} 

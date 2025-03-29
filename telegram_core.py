@@ -35,11 +35,11 @@ class TelegramCore:
         characters = string.ascii_letters + string.digits
         return ''.join(random.choice(characters) for _ in range(8))
 
-    async def get_group_entity(self):
+    async def get_group_entity(self, target):
         """获取群组实体"""
         try:
-            if not self.group_entity and self.target_group:
-                self.group_entity = await self.client.get_entity(self.target_group)
+            if not self.group_entity and target:
+                self.group_entity = await self.client.get_entity(target)
                 logger.info(f"Got group entity: {self.group_entity.title} (ID: {self.group_entity.id})")
             return self.group_entity
         except Exception as e:
@@ -59,7 +59,7 @@ class TelegramCore:
             await self.client.start(bot_token=self.bot_token)
             
             # 获取群组实体
-            await self.get_group_entity()
+            await self.get_group_entity(self.target_group)
             
             # 初始化消息处理器
             self.message_handlers = MessageHandlers(self.client, self.daily_password, self.group_entity)
@@ -104,14 +104,40 @@ class TelegramCore:
             logger.error(f"Error setting up event handlers: {e}", exc_info=True)
             raise
 
-    async def send_message(self, message: str, chat_id: str, reply_to: int = None):
-        """Send a message to a specific chat"""
+    async def send_message(self, message: str, channel: str = None, topic_id: int = None):
+        """发送消息到 Telegram"""
         try:
-            if reply_to:
-                await self.client.send_message(chat_id, message, reply_to=reply_to)
+            if not self.client:
+                logger.error("Telegram client not initialized")
+                raise Exception("Telegram client not initialized")
+            
+            logger.info(f"Attempting to send message: {message}")
+            
+            # 如果没有指定频道，使用默认群组
+            target = channel if channel else self.target_group
+            
+            # 获取群组实体
+            logger.info(f"Attempting to get entity for: {target}")
+            group = await self.get_group_entity(target)
+            logger.info(f"Found group: {group.title} (ID: {group.id})")
+            
+            # 发送消息
+            if topic_id:
+                logger.info(f"Sending message to topic {topic_id}")
+                response = await self.client.send_message(
+                    group,
+                    message,
+                    reply_to=topic_id
+                )
             else:
-                await self.client.send_message(chat_id, message)
-            logger.info(f"Message sent successfully to chat {chat_id}")
+                response = await self.client.send_message(
+                    group,
+                    message
+                )
+            
+            logger.info(f"Message sent successfully! Message ID: {response.id}")
+            return response.id
+        
         except Exception as e:
             logger.error(f"Error sending message: {e}", exc_info=True)
             raise
