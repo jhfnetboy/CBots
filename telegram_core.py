@@ -61,47 +61,48 @@ class TelegramCore:
         """Set up event handlers"""
         try:
             # 注册新成员处理器
-            @self.client.on(events.ChatAction.NewParticipant)
+            @self.client.on(events.ChatAction)
             async def new_member_handler(event):
-                logger.info("New member handler triggered")
-                try:
-                    new_member = event.new_participant
-                    if not new_member:
-                        logger.warning("No new member found in event")
-                        return
-                    
-                    chat = await event.get_chat()
-                    logger.info(f"New member {new_member.first_name} (ID: {new_member.id}) joined group {chat.title}")
-                    
-                    # 永久禁言新成员
+                if event.user_joined:
+                    logger.info("New member handler triggered")
                     try:
-                        await self.client.edit_permissions(
-                            chat,
-                            new_member.id,
-                            until_date=None,  # 设置为 None 表示永久禁言
-                            send_messages=False,
-                            send_media=False,
-                            send_stickers=False,
-                            send_gifs=False,
-                            send_games=False,
-                            use_inline_bots=False
-                        )
-                        logger.info(f"Successfully muted new member {new_member.first_name} permanently")
+                        new_member = event.user
+                        if not new_member:
+                            logger.warning("No new member found in event")
+                            return
                         
-                        # 发送欢迎消息
-                        welcome_message = (
-                            f"欢迎 {new_member.first_name} 加入群组！\n"
-                            "为了维护群组秩序，新成员将被禁言。\n"
-                            "请私聊机器人并发送每日密码以解除禁言。"
-                        )
-                        await event.reply(welcome_message)
-                        logger.info(f"Sent welcome message to {new_member.first_name}")
+                        chat = await event.get_chat()
+                        logger.info(f"New member {new_member.first_name} (ID: {new_member.id}) joined group {chat.title}")
                         
+                        # 永久禁言新成员
+                        try:
+                            await self.client.edit_permissions(
+                                chat,
+                                new_member.id,
+                                until_date=None,  # 设置为 None 表示永久禁言
+                                send_messages=False,
+                                send_media=False,
+                                send_stickers=False,
+                                send_gifs=False,
+                                send_games=False,
+                                use_inline_bots=False
+                            )
+                            logger.info(f"Successfully muted new member {new_member.first_name} permanently")
+                            
+                            # 发送欢迎消息
+                            welcome_message = (
+                                f"欢迎 {new_member.first_name} 加入群组！\n"
+                                "为了维护群组秩序，新成员将被禁言。\n"
+                                "请私聊机器人并发送每日密码以解除禁言。"
+                            )
+                            await event.reply(welcome_message)
+                            logger.info(f"Sent welcome message to {new_member.first_name}")
+                            
+                        except Exception as e:
+                            logger.error(f"Error muting new member: {str(e)}")
+                            
                     except Exception as e:
-                        logger.error(f"Error muting new member: {str(e)}")
-                        
-                except Exception as e:
-                    logger.error(f"Error handling new member: {str(e)}")
+                        logger.error(f"Error handling new member: {str(e)}")
 
             # 注册私聊消息处理器
             @self.client.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
@@ -134,6 +135,20 @@ class TelegramCore:
                         
                 except Exception as e:
                     logger.error(f"Error handling private message: {str(e)}")
+
+            # 注册命令处理器
+            @self.client.on(events.NewMessage(pattern='/pass'))
+            async def pass_command_handler(event):
+                try:
+                    # 检查是否是私聊消息
+                    if not event.is_private:
+                        return
+                    
+                    # 发送每日密码
+                    await event.reply(f"今日密码：{self.daily_password}")
+                    logger.info(f"Sent daily password to user {event.sender_id}")
+                except Exception as e:
+                    logger.error(f"Error handling pass command: {str(e)}")
 
             logger.info("Event handlers set up successfully")
         except Exception as e:
