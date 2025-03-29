@@ -4,6 +4,7 @@ import asyncio
 from telegram_api import TelegramAPI
 from twitter_api import TwitterAPI
 import threading
+import nest_asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -13,7 +14,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version
-VERSION = "0.23.5"
+VERSION = "0.23.6"
+
+# 允许嵌套事件循环
+nest_asyncio.apply()
+
+def run_async(coro):
+    """在单独的线程中运行异步函数"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 class WebService:
     def __init__(self, telegram_api, twitter_api):
@@ -40,9 +53,7 @@ class WebService:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                # 使用主事件循环
-                loop = asyncio.get_event_loop()
-                result = loop.run_until_complete(
+                result = run_async(
                     self.telegram_api.send_message(
                         data['message'],
                         data.get('channel'),
@@ -62,12 +73,9 @@ class WebService:
         @self.app.route('/api/status', methods=['GET'])
         def get_status():
             try:
-                # 使用主事件循环
-                loop = asyncio.get_event_loop()
-                result = loop.run_until_complete(
+                result = run_async(
                     self.telegram_api.get_status()
                 )
-                
                 return jsonify(result)
             except Exception as e:
                 logging.error(f"Error getting status: {str(e)}")
@@ -85,9 +93,7 @@ class WebService:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                # 使用主事件循环
-                loop = asyncio.get_event_loop()
-                result = loop.run_until_complete(
+                result = run_async(
                     self.twitter_api.send_tweet(
                         data['message'],
                         data.get('scheduled_time')
@@ -112,12 +118,9 @@ class WebService:
         @self.app.route('/api/twitter/status', methods=['GET'])
         def get_twitter_status():
             try:
-                # 使用主事件循环
-                loop = asyncio.get_event_loop()
-                result = loop.run_until_complete(
+                result = run_async(
                     self.twitter_api.get_status()
                 )
-                
                 return jsonify(result)
             except Exception as e:
                 logging.error(f"Error getting Twitter status: {str(e)}")
