@@ -42,6 +42,38 @@ async def main():
         api_thread.daemon = True
         api_thread.start()
         
+        # 设置事件处理器
+        telegram_core.client.add_event_handler(
+            telegram_core.message_handlers.handle_new_member,
+            telegram_core.events.ChatAction
+        )
+        
+        # 注册命令处理器
+        @telegram_core.client.on(telegram_core.events.NewMessage(pattern='/hi'))
+        async def hi_handler(event):
+            await telegram_core.message_handlers.handle_hi_command(event)
+            
+        @telegram_core.client.on(telegram_core.events.NewMessage(pattern='/start'))
+        async def start_handler(event):
+            await telegram_core.message_handlers.handle_start_command(event)
+            
+        @telegram_core.client.on(telegram_core.events.NewMessage(pattern='/help'))
+        async def help_handler(event):
+            await telegram_core.message_handlers.handle_help_command(event)
+            
+        # 处理 @bot 消息
+        @telegram_core.client.on(telegram_core.events.NewMessage(func=lambda e: e.mentioned))
+        async def mention_handler(event):
+            await telegram_core.message_handlers.handle_mention(event)
+            
+        # 处理私聊消息
+        @telegram_core.client.on(telegram_core.events.NewMessage(incoming=True, func=lambda e: e.is_private))
+        async def private_message_handler(event):
+            await telegram_core.message_handlers.handle_private_message(event)
+            
+        # 发送上线消息
+        await telegram_core.message_handlers.send_online_message()
+        
         # 保持服务运行
         while True:
             await asyncio.sleep(1)

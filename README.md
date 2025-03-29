@@ -432,3 +432,24 @@ Web 服务（端口 8872）：
 提供网页界面
 通过 HTTP 调用 Bot 服务的 API
 不直接处理 Telegram 和 Twitter 功能
+
+#### 基本feature
+1. bot上线通知，同时发送每日密码
+2. 新用户自动mute，私聊bot发送每日密码后解禁
+3. 接受/hi 等命令，单独命令函数处理
+目前有这些命令：
+Available commands:
+/start - Start the bot
+/help - Show this help message
+/hi - Say hello
+/content - Content management
+/price - Price information
+/event - Event management
+/task - Task management
+/news - News updates
+/PNTs - PNTs information
+/account - Account management
+
+4. at bot的消息
+对于直接at bot的，要有回复：Hi username，I receive your message：原消息
+5. 所有消息都在终端显示，未来添加filter过滤响应

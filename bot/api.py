@@ -26,20 +26,16 @@ class BotAPI:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                # 创建事件循环
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    result = loop.run_until_complete(
-                        self.telegram_core.send_message(
-                            data['message'],
-                            data.get('channel'),
-                            data.get('topic_id'),
-                            data.get('scheduled_time')
-                        )
+                # 使用主事件循环
+                loop = asyncio.get_event_loop()
+                result = loop.run_until_complete(
+                    self.telegram_core.send_message(
+                        data['message'],
+                        data.get('channel'),
+                        data.get('topic_id'),
+                        data.get('scheduled_time')
                     )
-                finally:
-                    loop.close()
+                )
                 
                 if 'error' in result:
                     return jsonify(result), 500
@@ -56,18 +52,14 @@ class BotAPI:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                # 创建事件循环
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    result = loop.run_until_complete(
-                        self.twitter_core.send_tweet(
-                            data['message'],
-                            data.get('scheduled_time')
-                        )
+                # 使用主事件循环
+                loop = asyncio.get_event_loop()
+                result = loop.run_until_complete(
+                    self.twitter_core.send_tweet(
+                        data['message'],
+                        data.get('scheduled_time')
                     )
-                finally:
-                    loop.close()
+                )
                 
                 if 'error' in result:
                     return jsonify(result), 500

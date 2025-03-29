@@ -71,13 +71,36 @@ class TelegramCore:
             # 初始化消息处理器
             self.message_handlers = MessageHandlers(self)
             
-            # 设置消息处理器
+            # 设置事件处理器
             self.client.add_event_handler(
                 self.message_handlers.handle_new_member,
                 events.ChatAction
             )
             
-            # 发送在线消息
+            # 注册命令处理器
+            @self.client.on(events.NewMessage(pattern='/hi'))
+            async def hi_handler(event):
+                await self.message_handlers.handle_hi_command(event)
+            
+            @self.client.on(events.NewMessage(pattern='/start'))
+            async def start_handler(event):
+                await self.message_handlers.handle_start_command(event)
+            
+            @self.client.on(events.NewMessage(pattern='/help'))
+            async def help_handler(event):
+                await self.message_handlers.handle_help_command(event)
+            
+            # 处理 @bot 消息
+            @self.client.on(events.NewMessage(func=lambda e: e.mentioned))
+            async def mention_handler(event):
+                await self.message_handlers.handle_mention(event)
+            
+            # 处理私聊消息
+            @self.client.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
+            async def private_message_handler(event):
+                await self.message_handlers.handle_private_message(event)
+            
+            # 发送上线消息
             await self.message_handlers.send_online_message()
             
             logger.info("Telegram service started successfully")
