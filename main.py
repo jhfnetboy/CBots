@@ -2,8 +2,8 @@ import logging
 import asyncio
 import threading
 from telegram_core import TelegramCore
-from telegram_api import init_api, run_api
-from web_service import run_web_service
+from telegram_api import TelegramAPI
+from web_service import WebService
 from dotenv import load_dotenv
 
 # Configure logging
@@ -13,39 +13,63 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def main():
-    """Main function"""
+async def run_telegram_core():
+    """运行 Telegram 核心服务"""
     try:
         # Load environment variables
         load_dotenv()
         
         # Initialize Telegram core
-        telegram_core = TelegramCore()
-        await telegram_core.start()
+        core = TelegramCore()
+        await core.start()
         
         # Initialize API with Telegram core
-        init_api(telegram_core)
-        
-        # Start API server in a separate thread
-        api_thread = threading.Thread(target=run_api, daemon=True)
-        api_thread.start()
+        telegram_api = TelegramAPI()
         
         # Start web service in a separate thread
-        web_thread = threading.Thread(target=run_web_service, daemon=True)
+        web_thread = threading.Thread(
+            target=lambda: run_web_service(telegram_api),
+            daemon=True
+        )
         web_thread.start()
         
-        logger.info("All services started successfully")
+        logger.info("Telegram core and web service started successfully")
         
         # Keep the main thread running
         while True:
             await asyncio.sleep(1)
             
     except Exception as e:
+        logger.error(f"Error in Telegram core: {str(e)}")
+        raise
+
+def run_web_service(telegram_api):
+    """运行 Web 服务"""
+    try:
+        web_service = WebService(telegram_api)
+        web_service.run_web_service()
+    except Exception as e:
+        logger.error(f"Error in web service: {str(e)}")
+        raise
+
+def main():
+    """主函数"""
+    try:
+        # 创建并启动 Telegram 核心服务线程
+        telegram_thread = threading.Thread(
+            target=lambda: asyncio.run(run_telegram_core()),
+            daemon=True
+        )
+        telegram_thread.start()
+        
+        # 等待线程结束
+        telegram_thread.join()
+        
+    except KeyboardInterrupt:
+        logger.info("Shutting down...")
+    except Exception as e:
         logger.error(f"Error in main: {str(e)}")
         raise
-    finally:
-        if telegram_core:
-            await telegram_core.stop()
 
-if __name__ == '__main__':
-    asyncio.run(main()) 
+if __name__ == "__main__":
+    main() 

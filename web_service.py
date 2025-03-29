@@ -4,6 +4,7 @@ import requests
 from datetime import datetime
 import asyncio
 import threading
+from telegram_api import TelegramAPI
 
 # Configure logging
 logging.basicConfig(
@@ -44,48 +45,56 @@ def telegram():
     """Telegram bot page"""
     return render_template('telegram.html', version=VERSION)
 
-@app.route('/api/send_message', methods=['POST'])
-def send_message():
-    """Send message endpoint"""
-    try:
-        data = request.get_json()
-        channel = data.get('channel')
-        message = data.get('message')
-        scheduled_time = data.get('scheduled_time')
+class WebService:
+    def __init__(self, telegram_api):
+        self.app = Flask(__name__)
+        self.telegram_api = telegram_api
+        self.setup_routes()
         
-        logger.info(f"Received send_message request - Channel: {channel}, Message: {message}, Scheduled: {scheduled_time}")
-        
-        if not channel or not message:
-            logger.error("Missing channel or message in request")
-            return jsonify({'error': 'Channel and message are required'}), 400
-            
-        # Forward request to core API
-        response = requests.post(
-            f"{API_BASE_URL}/send_message",
-            json={
-                'channel': channel,
-                'message': message,
-                'scheduled_time': scheduled_time
-            }
-        )
-        
-        return jsonify(response.json()), response.status_code
-        
-    except Exception as e:
-        logger.error(f"Error in send_message: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/status', methods=['GET'])
-def get_status():
-    """Get bot status endpoint"""
-    try:
-        # Forward request to core API
-        response = requests.get(f"{API_BASE_URL}/status")
-        return jsonify(response.json()), response.status_code
-    except Exception as e:
-        logger.error(f"Error getting status: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-def run_web_service(host='0.0.0.0', port=8080):
-    """Run the web service"""
-    app.run(host=host, port=port) 
+    def setup_routes(self):
+        @self.app.route('/api/send_message', methods=['POST'])
+        def send_message():
+            try:
+                data = request.get_json()
+                if not data or 'message' not in data:
+                    return jsonify({'error': 'Message is required'}), 400
+                    
+                # 创建新的事件循环
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                # 运行异步函数
+                result = loop.run_until_complete(
+                    self.telegram_api.send_message(data['message'])
+                )
+                
+                # 关闭事件循环
+                loop.close()
+                
+                return jsonify(result)
+            except Exception as e:
+                logging.error(f"Error sending message: {str(e)}")
+                return jsonify({'error': str(e)}), 500
+                
+        @self.app.route('/api/status', methods=['GET'])
+        def get_status():
+            try:
+                # 创建新的事件循环
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                # 运行异步函数
+                result = loop.run_until_complete(
+                    self.telegram_api.get_status()
+                )
+                
+                # 关闭事件循环
+                loop.close()
+                
+                return jsonify(result)
+            except Exception as e:
+                logging.error(f"Error getting status: {str(e)}")
+                return jsonify({'error': str(e)}), 500
+                
+    def run_web_service(self, host='0.0.0.0', port=8872):
+        self.app.run(host=host, port=port) 

@@ -22,17 +22,29 @@ class TelegramCore:
         self.api_hash = os.getenv('TELEGRAM_API_HASH')
         self.bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
         self.target_channel = os.getenv('TELEGRAM_TARGET_CHANNEL')
-        self.target_group = os.getenv('TELEGRAM_TARGET_GROUP')
+        self.target_group = os.getenv('TELEGRAM_GROUP')  # 修改为 TELEGRAM_GROUP
         self.client = None
         self.muted_users = set()  # 记录被禁言的用户ID
         self.daily_password = self.generate_password()  # 生成每日密码
         self.message_handlers = None
+        self.group_entity = None  # 缓存群组实体
         logger.info("TelegramCore initialized")
 
     def generate_password(self):
         """生成随机密码"""
         characters = string.ascii_letters + string.digits
         return ''.join(random.choice(characters) for _ in range(8))
+
+    async def get_group_entity(self):
+        """获取群组实体"""
+        try:
+            if not self.group_entity and self.target_group:
+                self.group_entity = await self.client.get_entity(self.target_group)
+                logger.info(f"Got group entity: {self.group_entity.title} (ID: {self.group_entity.id})")
+            return self.group_entity
+        except Exception as e:
+            logger.error(f"Error getting group entity: {str(e)}")
+            return None
 
     async def start(self):
         """Start the Telegram core service"""
@@ -46,8 +58,11 @@ class TelegramCore:
             
             await self.client.start(bot_token=self.bot_token)
             
+            # 获取群组实体
+            await self.get_group_entity()
+            
             # 初始化消息处理器
-            self.message_handlers = MessageHandlers(self.client, self.daily_password, self.target_group)
+            self.message_handlers = MessageHandlers(self.client, self.daily_password, self.group_entity)
             
             # 设置事件处理器
             self.setup_handlers()
@@ -116,9 +131,9 @@ class TelegramCore:
                     self.message_handlers.daily_password = self.daily_password
                 
                 # 发送每日密码到群组
-                if self.target_group:
+                if self.group_entity:
                     await self.send_message(
-                        self.target_group,
+                        self.group_entity,
                         f"今日新用户解禁密码是：{self.daily_password}"
                     )
                 
