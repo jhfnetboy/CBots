@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify
 import asyncio
 from telegram_api import TelegramAPI
 from twitter_api import TwitterAPI
+import threading
 
 # Configure logging
 logging.basicConfig(
@@ -12,13 +13,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version
-VERSION = "0.23.3"
+VERSION = "0.23.4"
 
 class WebService:
     def __init__(self, telegram_api, twitter_api):
         self.app = Flask(__name__)
         self.telegram_api = telegram_api
         self.twitter_api = twitter_api
+        self.loop = None
         self.setup_routes()
         
     def setup_routes(self):
@@ -39,12 +41,13 @@ class WebService:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                # 创建新的事件循环
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                # 使用共享的事件循环
+                if not self.loop:
+                    self.loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(self.loop)
                 
                 # 运行异步函数
-                result = loop.run_until_complete(
+                result = self.loop.run_until_complete(
                     self.telegram_api.send_message(
                         data['message'],
                         data.get('channel'),
@@ -52,9 +55,6 @@ class WebService:
                         data.get('scheduled_time')
                     )
                 )
-                
-                # 关闭事件循环
-                loop.close()
                 
                 if 'error' in result:
                     return jsonify(result), 500
@@ -67,17 +67,15 @@ class WebService:
         @self.app.route('/api/status', methods=['GET'])
         def get_status():
             try:
-                # 创建新的事件循环
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                # 使用共享的事件循环
+                if not self.loop:
+                    self.loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(self.loop)
                 
                 # 运行异步函数
-                result = loop.run_until_complete(
+                result = self.loop.run_until_complete(
                     self.telegram_api.get_status()
                 )
-                
-                # 关闭事件循环
-                loop.close()
                 
                 return jsonify(result)
             except Exception as e:
@@ -96,20 +94,18 @@ class WebService:
                 if not data or 'message' not in data:
                     return jsonify({'error': 'Message is required'}), 400
                     
-                # 创建新的事件循环
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                # 使用共享的事件循环
+                if not self.loop:
+                    self.loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(self.loop)
                 
                 # 运行异步函数
-                result = loop.run_until_complete(
+                result = self.loop.run_until_complete(
                     self.twitter_api.send_tweet(
                         data['message'],
                         data.get('scheduled_time')
                     )
                 )
-                
-                # 关闭事件循环
-                loop.close()
                 
                 if 'error' in result:
                     return jsonify(result), 500
@@ -129,17 +125,15 @@ class WebService:
         @self.app.route('/api/twitter/status', methods=['GET'])
         def get_twitter_status():
             try:
-                # 创建新的事件循环
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                # 使用共享的事件循环
+                if not self.loop:
+                    self.loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(self.loop)
                 
                 # 运行异步函数
-                result = loop.run_until_complete(
+                result = self.loop.run_until_complete(
                     self.twitter_api.get_status()
                 )
-                
-                # 关闭事件循环
-                loop.close()
                 
                 return jsonify(result)
             except Exception as e:

@@ -64,6 +64,9 @@ def run_web_service(telegram_api, twitter_api):
 async def main():
     """主函数"""
     try:
+        # 创建事件循环
+        loop = asyncio.get_event_loop()
+        
         # 启动 Telegram 服务
         telegram_api = await run_telegram_core()
         
