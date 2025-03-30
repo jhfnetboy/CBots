@@ -71,6 +71,7 @@ class TelegramCore:
             self.client = TelegramClient(session_file, self.api_id, self.api_hash)
             
             await self.client.start(bot_token=self.bot_token)
+            logger.info("Telegram client started successfully")
             
             # 获取群组实体
             if self.target_group:
@@ -82,12 +83,14 @@ class TelegramCore:
                 daily_password=self.daily_password,
                 target_group=self.target_group
             )
+            logger.info("Message handlers initialized")
                 
             # 设置事件处理器
             self.setup_handlers()
             
-            self.is_running = True  # 设置运行状态
-            logger.info("Telegram core service started successfully")
+            # 设置运行状态
+            self.is_running = True
+            logger.info(f"Telegram core service started successfully - is_running: {self.is_running}")
             return True
             
         except Exception as e:

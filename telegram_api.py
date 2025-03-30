@@ -14,13 +14,7 @@ class TelegramAPI:
         """发送消息到 Telegram"""
         try:
             # 检查服务状态
-            if not self.is_running:
-                logger.error("Telegram API service is not running")
-                return {"error": "Telegram service is not running"}
-                
-            if not self.core.is_running:
-                logger.error("Telegram core service is not running")
-                return {"error": "Telegram service is not running"}
+            logger.info(f"Checking service status - core.is_running: {self.core.is_running}, client: {self.core.client is not None}")
             
             if not self.core.client:
                 logger.error("Telegram client is not initialized")
@@ -40,6 +34,7 @@ class TelegramAPI:
                 await asyncio.sleep(delay)
             
             # 发送消息
+            logger.info(f"Sending message to channel: {channel}, topic_id: {topic_id}")
             message_id = await self.core.send_message(message, channel, topic_id)
             return {
                 "status": "success",

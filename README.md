@@ -327,7 +327,7 @@ Available commands:
 每次中文沟通
 每次不要扩散修改范围，只针对问题
 每次都不要擅自优化和扩张功能范围
-每次修改后请运行app.py
+每次修改后请运行pthon main.py
 每次更新，记得更新version，例如0.23.0 -——-》 0.23.1，递增0.1
 每次记得输出更改了那几个文件，会可能影响那些功能
 测试禁言功能用username=nicolasshuaishuai

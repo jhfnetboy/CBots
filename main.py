@@ -43,9 +43,11 @@ class BotService:
         """启动服务"""
         try:
             # 启动 Telegram 服务
+            logger.info("Starting Telegram core service...")
             if not await self.telegram_core.start():
                 logger.error("Failed to start Telegram service")
                 return False
+            logger.info(f"Telegram core service status - is_running: {self.telegram_core.is_running}")
                 
             # 启动 Twitter 服务
             try:
@@ -55,9 +57,11 @@ class BotService:
                 logger.warning(f"Twitter service failed to start: {e}, continuing without Twitter functionality")
             
             # 启动 Telegram API 服务
+            logger.info("Starting Telegram API service...")
             if not await self.telegram_api.start():
                 logger.error("Failed to start Telegram API service")
                 return False
+            logger.info(f"Telegram API service status - is_running: {self.telegram_api.is_running}")
             
             # 暂时注释掉上线消息
             # await self.message_handlers.send_online_message()
@@ -155,12 +159,22 @@ def main():
             logger.error("Telegram API service is not running")
             return
             
+        # 创建启动事件
+        startup_event = threading.Event()
+        
         # 启动 Web 服务
         web_service = WebService(service.telegram_api, service.twitter_api)
-        web_thread = threading.Thread(target=web_service.run)
+        web_thread = threading.Thread(
+            target=lambda: web_service.run(startup_event)
+        )
         web_thread.daemon = True
         web_thread.start()
         
+        # 等待 Web 服务启动
+        if not startup_event.wait(timeout=10):
+            logger.error("Web service failed to start within timeout")
+            return
+            
         logger.info("All services started successfully")
         
         # 运行事件循环
