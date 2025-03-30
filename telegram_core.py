@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import random
 import string
 from message_handlers import MessageHandlers
+from io import BytesIO
 
 # Configure logging
 logging.basicConfig(
@@ -122,7 +123,7 @@ class TelegramCore:
             logger.error(f"Error setting up event handlers: {e}", exc_info=True)
             raise
 
-    async def send_message(self, message: str, channel: str = None, topic_id: int = None):
+    async def send_message(self, message: str, channel: str = None, topic_id: int = None, image_file: BytesIO = None):
         """发送消息到 Telegram"""
         try:
             if not self.client:
@@ -140,18 +141,36 @@ class TelegramCore:
             logger.info(f"Found group: {group.title} (ID: {group.id})")
             
             # 发送消息
-            if topic_id:
-                logger.info(f"Sending message to topic {topic_id}")
-                response = await self.client.send_message(
-                    group,
-                    message,
-                    reply_to=topic_id
-                )
+            if image_file:
+                if topic_id:
+                    logger.info(f"Sending image message to topic {topic_id}")
+                    response = await self.client.send_file(
+                        group,
+                        image_file,
+                        caption=message,
+                        reply_to=topic_id
+                    )
+                else:
+                    logger.info("Sending image message")
+                    response = await self.client.send_file(
+                        group,
+                        image_file,
+                        caption=message
+                    )
             else:
-                response = await self.client.send_message(
-                    group,
-                    message
-                )
+                if topic_id:
+                    logger.info(f"Sending text message to topic {topic_id}")
+                    response = await self.client.send_message(
+                        group,
+                        message,
+                        reply_to=topic_id
+                    )
+                else:
+                    logger.info("Sending text message")
+                    response = await self.client.send_message(
+                        group,
+                        message
+                    )
             
             logger.info(f"Message sent successfully! Message ID: {response.id}")
             return response.id

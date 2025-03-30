@@ -57,6 +57,13 @@
             color: #6c757d;
             font-size: 0.8em;
         }
+        .image-preview {
+            max-width: 300px;
+            margin-top: 10px;
+        }
+        .image-upload {
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -78,6 +85,11 @@
                             <span id="charCount">0</span>/280 characters
                         </div>
                     </div>
+                    <div class="mb-3 image-upload">
+                        <label for="image" class="form-label">Image (Optional)</label>
+                        <input type="file" class="form-control" id="image" accept="image/*">
+                        <div id="imagePreview" class="image-preview"></div>
+                    </div>
                     <div class="mb-3">
                         <label for="scheduled_time" class="form-label">Schedule Time (Optional)</label>
                         <input type="datetime-local" class="form-control" id="scheduled_time" name="scheduled_time">
@@ -93,6 +105,21 @@
     </div>
 
     <script>
+        let selectedImage = null;
+
+        document.getElementById('image').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedImage = e.target.result;
+                    const preview = document.getElementById('imagePreview');
+                    preview.innerHTML = `<img src="${selectedImage}" style="max-width: 100%;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
         // Character counter
         const messageInput = document.getElementById('message');
         const charCount = document.getElementById('charCount');
@@ -125,23 +152,35 @@
             }
             
             try {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-info">
+                        Sending tweet...
+                    </div>
+                `;
+                
+                const data = {
+                    message: message,
+                    scheduled_time: scheduledTime || null
+                };
+
+                if (selectedImage) {
+                    data.image = selectedImage;
+                }
+
                 const response = await fetch('/api/send_tweet', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        message: message,
-                        scheduled_time: scheduledTime || null
-                    })
+                    body: JSON.stringify(data)
                 });
                 
-                const data = await response.json();
+                const result = await response.json();
                 
                 if (response.ok) {
                     statusDiv.innerHTML = `
                         <div class="alert alert-success">
-                            Tweet ${data.scheduled ? 'scheduled' : 'sent'} successfully!
+                            Tweet ${result.scheduled ? 'scheduled' : 'sent'} successfully!
                         </div>
                     `;
                     document.getElementById('tweetForm').reset();
@@ -149,7 +188,7 @@
                 } else {
                     statusDiv.innerHTML = `
                         <div class="alert alert-danger">
-                            Error: ${data.error}
+                            Error: ${result.error}
                         </div>
                     `;
                 }

@@ -57,6 +57,13 @@
             color: #6c757d;
             font-size: 0.8em;
         }
+        .image-preview {
+            max-width: 300px;
+            margin-top: 10px;
+        }
+        .image-upload {
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -79,6 +86,11 @@
                     <div class="mb-3">
                         <label for="message" class="form-label">Message</label>
                         <textarea class="form-control" id="message" name="message" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3 image-upload">
+                        <label for="image" class="form-label">Image (Optional)</label>
+                        <input type="file" class="form-control" id="image" accept="image/*">
+                        <div id="imagePreview" class="image-preview"></div>
                     </div>
                     <div class="mb-3">
                         <label for="scheduled_time" class="form-label">Schedule Time (Optional)</label>
@@ -108,6 +120,21 @@
             }
         }
 
+        let selectedImage = null;
+
+        document.getElementById('image').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    selectedImage = e.target.result;
+                    const preview = document.getElementById('imagePreview');
+                    preview.innerHTML = `<img src="${selectedImage}" style="max-width: 100%;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
         // 发送消息函数
         async function sendMessage() {
             debugLog('开始发送消息...');
@@ -125,28 +152,34 @@
 
             try {
                 debugLog('准备发送请求...');
+                const data = {
+                    channel: channel,
+                    message: message,
+                    scheduled_time: scheduledTime || null
+                };
+
+                if (selectedImage) {
+                    data.image = selectedImage;
+                }
+
                 const response = await fetch('/api/send_message', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        channel: channel,
-                        message: message,
-                        scheduled_time: scheduledTime || null
-                    })
+                    body: JSON.stringify(data)
                 });
                 
                 debugLog(`收到响应 - 状态码: ${response.status}`);
-                const data = await response.json();
-                debugLog(`响应数据: ${JSON.stringify(data)}`);
+                const result = await response.json();
+                debugLog(`响应数据: ${JSON.stringify(result)}`);
                 
                 if (response.ok) {
                     debugLog('消息发送成功');
                     alert('消息发送成功！');
                 } else {
-                    debugLog(`发送失败: ${data.error}`);
-                    alert(`发送失败: ${data.error}`);
+                    debugLog(`发送失败: ${result.error}`);
+                    alert(`发送失败: ${result.error}`);
                 }
             } catch (error) {
                 debugLog(`发生错误: ${error.message}`);
