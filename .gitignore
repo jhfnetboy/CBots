@@ -192,3 +192,5 @@ bot_session.session
 .netlify
 bot.session
 bot.session-journal
+bot.pid
+web.pid
