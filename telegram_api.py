@@ -63,11 +63,17 @@ class TelegramAPI:
             # 等待到指定时间
             await asyncio.sleep(delay)
             
+            # 添加定时信息到消息中
+            formatted_time = scheduled_datetime.strftime('%Y-%m-%d %H:%M')
+            enhanced_message = f"{message}\n\n[定时于 {formatted_time} 发送]"
+            
             # 发送消息
-            await self._send_message_now(message, channel, topic_id, image_data)
+            await self._send_message_now(enhanced_message, channel, topic_id, image_data)
             
         except Exception as e:
             logger.error(f"Error in scheduled message task: {str(e)}")
+            import traceback
+            logger.error(f"Stack trace: {traceback.format_exc()}")
 
     async def _send_message_now(self, message: str, channel: str, topic_id: int, image_data: str = None):
         """立即发送消息"""
@@ -76,11 +82,19 @@ class TelegramAPI:
                 # 处理图片数据
                 import base64
                 from io import BytesIO
+                import time
                 
                 try:
                     # 解码 base64 图片数据
+                    content_type = image_data.split(';')[0].split(':')[1]
+                    ext = content_type.split('/')[1]  # 获取文件格式 (如 jpeg, png)
+                    file_name = f"image_{int(time.time())}.{ext}"  # 生成文件名
+                    
                     image_bytes = base64.b64decode(image_data.split(',')[1])
                     image_file = BytesIO(image_bytes)
+                    image_file.name = file_name  # 设置文件名
+                    
+                    logger.info(f"Sending image with filename: {file_name}, content-type: {content_type}")
                     
                     # 发送图片和文本
                     message_id = await self.core.send_message(

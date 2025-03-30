@@ -175,8 +175,22 @@
                 debugLog(`响应数据: ${JSON.stringify(result)}`);
                 
                 if (response.ok) {
-                    debugLog('消息发送成功');
-                    alert('消息发送成功！');
+                    if (result.status === 'scheduled') {
+                        // 定时发送成功
+                        const delayInfo = result.scheduled_info?.delay;
+                        if (delayInfo) {
+                            const delayText = `已安排定时发送，预计 ${delayInfo.days} 天 ${delayInfo.hours} 小时 ${delayInfo.minutes} 分钟后发送`;
+                            debugLog(delayText);
+                            alert(delayText);
+                        } else {
+                            debugLog('消息已定时发送');
+                            alert('消息已定时发送');
+                        }
+                    } else {
+                        // 直接发送成功
+                        debugLog('消息发送成功');
+                        alert('消息发送成功！');
+                    }
                 } else {
                     debugLog(`发送失败: ${result.error}`);
                     alert(`发送失败: ${result.error}`);
