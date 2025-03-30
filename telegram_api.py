@@ -13,8 +13,18 @@ class TelegramAPI:
     async def send_message(self, message: str, channel: str = None, topic_id: int = None, scheduled_time: str = None):
         """发送消息到 Telegram"""
         try:
+            # 检查服务状态
             if not self.is_running:
+                logger.error("Telegram API service is not running")
                 return {"error": "Telegram service is not running"}
+                
+            if not self.core.is_running:
+                logger.error("Telegram core service is not running")
+                return {"error": "Telegram service is not running"}
+            
+            if not self.core.client:
+                logger.error("Telegram client is not initialized")
+                return {"error": "Telegram client not initialized"}
             
             if scheduled_time:
                 # 解析计划时间
@@ -44,7 +54,7 @@ class TelegramAPI:
     async def get_status(self):
         """获取 Telegram 服务状态"""
         try:
-            if not self.is_running:
+            if not self.core.is_running:
                 return {"status": "stopped"}
             
             return {
@@ -60,14 +70,21 @@ class TelegramAPI:
     async def start(self):
         """启动 Telegram API 服务"""
         try:
-            if not self.core.client:
-                await self.core.start()
+            # 确保 core 已启动
+            if not self.core.is_running:
+                result = await self.core.start()
+                if not result:
+                    logger.error("Failed to start Telegram core service")
+                    return False
+            
             self.is_running = True
-            return {"status": "success", "message": "Telegram API service started"}
+            logger.info("Telegram API service started successfully")
+            return True
             
         except Exception as e:
             logger.error(f"Error starting Telegram API service: {str(e)}")
-            return {"error": str(e)}
+            self.is_running = False
+            return False
 
     async def stop(self):
         """停止 Telegram API 服务"""

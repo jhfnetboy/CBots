@@ -385,3 +385,120 @@ Web 服务通过本地 API 与核心服务通信
 at bot 的消息都要回复：Hi，dear username，I got your message：原消息信息
 增加/version命令：返回当前版本号
 每次更新都要递增：当前版本0.23.1，下一个版本0.23.2
+
+## 系统架构
+
+```mermaid
+graph TD
+    A[main.py] --> B[TelegramCore]
+    A --> C[MessageHandlers]
+    B --> D[Telethon Client]
+    C --> E[事件处理]
+    E --> F[新成员处理]
+    E --> G[命令处理]
+    E --> H[私聊处理]
+    E --> I[@bot消息处理]
+    B --> J[定时任务]
+    J --> K[3小时消息]
+    J --> L[每日密码]
+    B --> M[API接口]
+    M --> N[消息发送]
+    M --> O[状态查询]
+```
+
+## 核心功能
+
+1. 自动启动
+   - 系统启动时自动运行
+   - 崩溃时自动重启
+   - 定时任务管理
+
+2. 消息处理
+   - 新成员自动禁言
+   - 私聊密码验证
+   - 命令响应
+   - @bot消息处理
+
+3. 定时任务
+   - 每3小时发送随机消息
+   - 每日更新密码
+   - 定时状态检查
+
+4. API接口
+   - 消息发送
+   - 状态查询
+   - 配置管理
+
+Mac install service
+
+# 复制服务文件
+sudo cp com.cbots.service.plist /Library/LaunchAgents/
+
+# 加载服务
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+
+Linux install service功能
+
+# 复制服务文件
+sudo cp cbots.service /etc/systemd/system/
+
+# 重新加载 systemd
+sudo systemctl daemon-reload
+
+# 启用服务
+sudo systemctl enable cbots
+
+# 启动服务
+sudo systemctl start cbots
+
+## 异步架构选型
+# 示例：使用 asyncio 的异步架构
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+class AsyncService:
+    def __init__(self):
+        self.loop = asyncio.get_event_loop()
+        self.executor = ThreadPoolExecutor(max_workers=4)
+        
+    async def run(self):
+        # 主事件循环
+        while True:
+            await asyncio.sleep(1)
+            
+    def run_blocking(self):
+        # 阻塞任务在单独的线程池中运行
+        return self.loop.run_in_executor(self.executor, self.blocking_task)
+
+# 示例：使用 Celery 的分布式架构
+from celery import Celery
+
+app = Celery('tasks', broker='redis://localhost:6379/0')
+
+@app.task
+def send_message(message):
+    # 异步任务处理
+    pass        
+
+
+# 示例：使用 FastAPI 的异步 Web 架构
+from fastapi import FastAPI
+from fastapi.background import BackgroundTasks
+
+app = FastAPI()
+
+@app.post("/send_message")
+async def send_message(message: str, background_tasks: BackgroundTasks):
+    background_tasks.add_task(process_message, message)
+    return {"status": "accepted"}
+
+# 示例：使用 APScheduler 的定时任务架构
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+scheduler = AsyncIOScheduler()
+
+@scheduler.scheduled_job(CronTrigger(hour='*/3'))
+async def scheduled_task():
+    # 每3小时执行的任务
+    pass    

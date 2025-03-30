@@ -28,6 +28,7 @@ class TelegramCore:
         self.daily_password = self.generate_password()  # 生成每日密码
         self.message_handlers = None
         self.group_entity = None  # 缓存群组实体
+        self.is_running = False  # 添加运行状态标志
         logger.info("TelegramCore initialized")
 
     def generate_password(self):
@@ -50,8 +51,21 @@ class TelegramCore:
         """Start the Telegram core service"""
         try:
             logger.info("Starting Telegram core service...")
-            if not self.api_id or not self.api_hash or not self.bot_token:
-                raise ValueError("Missing required environment variables")
+            
+            # 检查必需的环境变量
+            missing_vars = []
+            if not self.api_id:
+                missing_vars.append('TELEGRAM_API_ID')
+                logger.debug(f"TELEGRAM_API_ID: {self.api_id}")
+            if not self.api_hash:
+                missing_vars.append('TELEGRAM_API_HASH')
+                logger.debug(f"TELEGRAM_API_HASH: {self.api_hash}")
+            if not self.bot_token:
+                missing_vars.append('TELEGRAM_BOT_TOKEN')
+                logger.debug(f"TELEGRAM_BOT_TOKEN: {self.bot_token}")
+                
+            if missing_vars:
+                raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
                 
             session_file = "telegram_core_session"
             self.client = TelegramClient(session_file, self.api_id, self.api_hash)
@@ -59,26 +73,27 @@ class TelegramCore:
             await self.client.start(bot_token=self.bot_token)
             
             # 获取群组实体
-            await self.get_group_entity(self.target_group)
+            if self.target_group:
+                await self.get_group_entity(self.target_group)
             
             # 初始化消息处理器
-            self.message_handlers = MessageHandlers(self.client, self.daily_password, self.group_entity)
-            
+            self.message_handlers = MessageHandlers(
+                client=self.client,
+                daily_password=self.daily_password,
+                target_group=self.target_group
+            )
+                
             # 设置事件处理器
             self.setup_handlers()
             
-            # 启动每日密码发送任务
-            asyncio.create_task(self.start_daily_verification())
-            
-            # 发送上线消息
-            await self.message_handlers.send_online_message()
-            
+            self.is_running = True  # 设置运行状态
             logger.info("Telegram core service started successfully")
+            return True
+            
         except Exception as e:
             logger.error(f"Error starting Telegram core service: {e}", exc_info=True)
-            if self.client:
-                await self.client.disconnect()
-            raise
+            self.is_running = False
+            return False
 
     def setup_handlers(self):
         """Set up event handlers"""
@@ -94,9 +109,9 @@ class TelegramCore:
             async def private_message_handler(event):
                 await self.message_handlers.handle_private_message(event)
 
-            # 注册所有消息处理器
-            @self.client.on(events.NewMessage)
-            async def message_handler(event):
+            # 注册群组消息处理器（排除私聊消息）
+            @self.client.on(events.NewMessage(incoming=True, func=lambda e: not e.is_private))
+            async def group_message_handler(event):
                 await self.message_handlers.handle_message(event)
 
             logger.info("Event handlers set up successfully")
@@ -172,7 +187,8 @@ class TelegramCore:
         try:
             if self.client:
                 await self.client.disconnect()
-                logger.info("Telegram core service stopped successfully")
+            self.is_running = False  # 设置运行状态
+            logger.info("Telegram core service stopped successfully")
         except Exception as e:
             logger.error(f"Error stopping Telegram core service: {e}", exc_info=True)
             raise 

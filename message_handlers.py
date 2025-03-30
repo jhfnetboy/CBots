@@ -38,10 +38,10 @@ class MessageHandlers:
                 
                 # 发送欢迎消息
                 welcome_message = (
-                    f"欢迎 {new_member.first_name} 加入群组！\n"
-                    "为了维护群组秩序，新成员将被禁言。\n"
-                    f"今日解禁密码是：{self.daily_password}\n"
-                    "请私聊机器人并发送每日密码以解除禁言。"
+                    f"Welcome {new_member.first_name} to the group!\n"
+                    "To maintain group order, new members are muted.\n"
+                    f"Today's password is: {self.daily_password}\n"
+                    "Please send the password to the bot in private chat to unmute."
                 )
                 await event.reply(welcome_message)
                 logger.info(f"Sent welcome message to {new_member.first_name}")
@@ -52,46 +52,15 @@ class MessageHandlers:
         except Exception as e:
             logger.error(f"Error handling new member: {str(e)}")
 
-    async def handle_private_message(self, event):
-        """Handle private messages"""
+    async def handle_command(self, event, command):
+        """处理命令消息"""
         try:
-            user_id = event.sender_id
-            message_text = event.message.text
-            
-            # 检查是否是每日密码
-            if message_text == self.daily_password:
-                # 解除禁言
-                if self.target_group:
-                    await self.client.edit_permissions(
-                        self.target_group,
-                        user_id,
-                        until_date=None,
-                        send_messages=True,
-                        send_media=True,
-                        send_stickers=True,
-                        send_gifs=True,
-                        send_games=True
-                    )
-                    logger.info(f"Successfully unmuted user {user_id}")
-                    await event.reply("密码正确！您的禁言已解除。")
-                else:
-                    await event.reply("密码正确，但群组ID未设置，请联系管理员。")
-            else:
-                await event.reply("密码错误，请重试。")
-                
-        except Exception as e:
-            logger.error(f"Error handling private message: {str(e)}")
-
-    async def handle_command(self, event):
-        """Handle command messages"""
-        try:
-            message_text = event.message.text
             sender = await event.get_sender()
-            username = sender.username if sender else "user"
+            username = sender.first_name if sender else "user"
             
-            if message_text.lower() == '/hi':
+            if command.lower() == '/hi':
                 await event.reply("Hi, my friends，this is COS72 Bot。")
-            elif message_text.lower() == '/help':
+            elif command.lower() == '/help':
                 help_text = (
                     "Available commands:\n"
                     "/start - Start the bot\n"
@@ -107,24 +76,24 @@ class MessageHandlers:
                     "/version - Show bot version"
                 )
                 await event.reply(help_text)
-            elif message_text.lower() == '/pass':
+            elif command.lower() == '/pass':
                 if event.is_private:
                     await event.reply(f"今日密码：{self.daily_password}")
                 else:
                     await event.reply("请私聊机器人获取密码。")
-            elif message_text.lower() == '/version':
+            elif command.lower() == '/version':
                 await event.reply(f"Bot version: {self.VERSION}")
             else:
-                await event.reply(f"Hi {username}, you invoke function: {message_text[1:]}")
+                await event.reply(f"Hi {username}, you invoke function: {command[1:]}")
                 
         except Exception as e:
             logger.error(f"Error handling command: {str(e)}")
 
     async def handle_mention(self, event):
-        """Handle @ mentions"""
+        """处理 @ 提及消息"""
         try:
             sender = await event.get_sender()
-            username = sender.username if sender else "user"
+            username = sender.first_name if sender else "user"
             message_text = event.message.text
             
             await event.reply(f"Hi, dear {username}, I got your message: {message_text}")
@@ -132,13 +101,48 @@ class MessageHandlers:
         except Exception as e:
             logger.error(f"Error handling mention: {str(e)}")
 
+    async def handle_private_message(self, event):
+        """处理私聊消息"""
+        try:
+            sender = await event.get_sender()
+            message_text = event.message.text
+            
+            # 检查是否是解禁密码
+            if message_text == self.daily_password:
+                # 直接使用目标群组
+                if self.target_group:
+                    try:
+                        # 解除禁言
+                        await self.client.edit_permissions(
+                            self.target_group,
+                            sender.id,
+                            until_date=None,
+                            send_messages=True,
+                            send_media=True,
+                            send_stickers=True,
+                            send_gifs=True,
+                            send_games=True
+                        )
+                        await event.reply("Password correct! You have been unmuted.")
+                        logger.info(f"Successfully unmuted user {sender.first_name} in group {self.target_group}")
+                    except Exception as e:
+                        logger.error(f"Error unmuting user in group {self.target_group}: {str(e)}")
+                        await event.reply("Failed to unmute, please contact admin.")
+                else:
+                    await event.reply("Target group not set, please contact admin.")
+            else:
+                await event.reply("Incorrect password, please try again.")
+                
+        except Exception as e:
+            logger.error(f"Error handling private message: {str(e)}")
+
     async def handle_message(self, event):
-        """Handle all messages"""
+        """处理所有消息"""
         try:
             # 获取消息信息
             message_text = event.message.text
             sender = await event.get_sender()
-            username = sender.username if sender else "user"
+            username = sender.first_name if sender else "user"
             chat = await event.get_chat()
             chat_title = chat.title if chat else "unknown chat"
             
@@ -152,19 +156,19 @@ class MessageHandlers:
             
             # 处理命令
             if message_text.startswith('/'):
-                await self.handle_command(event)
+                await self.handle_command(event, message_text)
                 
         except Exception as e:
             logger.error(f"Error handling message: {str(e)}")
 
     async def send_online_message(self):
-        """Send online message to the group"""
+        """发送上线消息到群组"""
         try:
             if self.target_group:
                 message = (
                     f"🤖 Bot is now online!\n\n"
-                    f"今日新用户解禁密码是：{self.daily_password}\n"
-                    "新用户加入后将被禁言，请私聊机器人发送密码以解除禁言。"
+                    f"Today's password is: {self.daily_password}\n"
+                    "New members will be muted, please send the password to the bot in private chat to unmute."
                 )
                 await self.client.send_message(self.target_group, message)
                 logger.info("Online message sent successfully")
