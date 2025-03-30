@@ -88,6 +88,7 @@
                     <div class="mb-3 image-upload">
                         <label for="image" class="form-label">Image (Optional)</label>
                         <input type="file" class="form-control" id="image" accept="image/*">
+                        <small class="form-text text-muted">Max file size: 950KB</small>
                         <div id="imagePreview" class="image-preview"></div>
                     </div>
                     <div class="mb-3">
@@ -110,6 +111,13 @@
         document.getElementById('image').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
+                // Check file size (950KB limit)
+                if (file.size > 950 * 1024) {
+                    alert('Image size exceeds 950KB limit. Please select a smaller image.');
+                    this.value = '';  // Clear the file input
+                    return;
+                }
+                
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     selectedImage = e.target.result;
@@ -179,10 +187,10 @@
                 
                 if (response.ok) {
                     if (result.status === 'scheduled') {
-                        // 定时发送成功
+                        // Scheduled message success
                         const delayInfo = result.scheduled_info?.delay;
                         if (delayInfo) {
-                            const delayText = `已安排定时发送，预计 ${delayInfo.days} 天 ${delayInfo.hours} 小时 ${delayInfo.minutes} 分钟后发送`;
+                            const delayText = `Message scheduled to be sent in ${delayInfo.days} days, ${delayInfo.hours} hours, ${delayInfo.minutes} minutes`;
                             statusDiv.innerHTML = `
                                 <div class="alert alert-success">
                                     ${delayText}
@@ -191,15 +199,15 @@
                         } else {
                             statusDiv.innerHTML = `
                                 <div class="alert alert-success">
-                                    推文已安排定时发送！
+                                    Tweet scheduled for delivery!
                                 </div>
                             `;
                         }
                     } else {
-                        // 直接发送成功
+                        // Immediate send success
                         statusDiv.innerHTML = `
                             <div class="alert alert-success">
-                                推文发送成功！${result.url ? `<a href="${result.url}" target="_blank">查看推文</a>` : ''}
+                                Tweet sent successfully! ${result.url ? `<a href="${result.url}" target="_blank">View tweet</a>` : ''}
                             </div>
                         `;
                     }

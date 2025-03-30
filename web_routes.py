@@ -27,7 +27,7 @@ telegram_api = None
 twitter_api = None
 
 # Version
-VERSION = "0.23.14"
+VERSION = "0.23.18"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -76,10 +76,11 @@ def send_message():
         message = data.get('message')
         scheduled_time = data.get('scheduled_time')
         image_data = data.get('image')  # Base64 encoded image data
+        image_url = data.get('image_url')  # URL to an image
         
-        logger.info(f"Parsed request data - Channel: {channel}, Message: {message}, Scheduled time type: {type(scheduled_time)}, Scheduled value: {scheduled_time}, Has Image: {bool(image_data)}")
+        logger.info(f"Parsed request data - Channel: {channel}, Message: {message}, Scheduled time type: {type(scheduled_time)}, Scheduled value: {scheduled_time}, Has Image: {bool(image_data)}, Has Image URL: {bool(image_url)}")
         
-        if not channel or (not message and not image_data):
+        if not channel or (not message and not image_data and not image_url):
             logger.error("Missing channel or message/image in request")
             return jsonify({'error': 'Channel and message/image are required'}), 400
             
@@ -139,7 +140,8 @@ def send_message():
                             channel=community_name,
                             topic_id=topic_id,
                             scheduled_time=_scheduled_time,
-                            image_data=image_data
+                            image_data=image_data,
+                            image_url=image_url
                         )
                         
                         if 'status' in result and result['status'] == 'scheduled':
@@ -161,7 +163,8 @@ def send_message():
                         channel=community_name,
                         topic_id=topic_id,
                         scheduled_time=None,
-                        image_data=image_data
+                        image_data=image_data,
+                        image_url=image_url
                     )
                     
             except Exception as e:

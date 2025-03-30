@@ -512,3 +512,142 @@ async def scheduled_task():
 
 ### 版本号
 增加版本号显示，在终端用绿色字体；每次修改代码，都要改动版本号：0.23.11--》0.23.12
+
+## Managing the Service on macOS
+
+After loading the service using `launchctl load /Library/LaunchAgents/com.cbots.service.plist`, you can check the service status and logs with the following commands:
+
+### Checking Service Status
+
+```bash
+# Check if the service is running
+launchctl list | grep cbots
+
+# Get detailed information about the service
+launchctl list com.cbots.service
+```
+
+### Viewing Service Logs
+
+The logs are typically stored in one of these locations:
+
+1. System log:
+```bash
+# View system logs (may include service logs)
+log show --predicate 'processImagePath contains "python"' --last 30m
+```
+
+2. Application logs in the service's working directory:
+```bash
+# View logs in the service's working directory
+cd ~/dev/tools/jhfnetboy-CBots  # Change to your actual project directory
+tail -f *.log
+```
+
+3. Standard output log (if redirected in the plist):
+```bash
+# Check the stdout/stderr files (if defined in the plist file)
+cat ~/Library/Logs/cbots.log
+cat ~/Library/Logs/cbots-error.log
+```
+
+### Starting, Stopping and Restarting the Service
+
+```bash
+# Stop the service
+launchctl unload /Library/LaunchAgents/com.cbots.service.plist
+
+# Start the service
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+
+# Restart the service
+launchctl unload /Library/LaunchAgents/com.cbots.service.plist
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+```
+
+### Updating and Restarting the Service on macOS
+
+When you update the code, follow these steps to apply the changes:
+
+1. First, stop the running service:
+```bash
+launchctl unload /Library/LaunchAgents/com.cbots.service.plist
+```
+
+2. Pull or update your code:
+```bash
+cd ~/dev/tools/jhfnetboy-CBots  # Change to your project directory
+git pull  # If using git
+```
+
+3. Restart the service:
+```bash
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+```
+
+4. Check if the service is running:
+```bash
+launchctl list | grep cbots
+```
+
+5. If the service doesn't restart properly, try these additional steps:
+```bash
+# Check if the process is still running
+ps aux | grep python | grep main.py
+
+# Kill any hanging process if needed
+kill -9 <process_id>
+
+# Then try loading the service again
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+```
+
+### Troubleshooting Service Startup and Port Issues
+
+If you cannot access the service at http://127.0.0.1:8872/, follow these steps to diagnose and fix the issue:
+
+1. Check if the service process is running:
+```bash
+ps aux | grep python | grep main.py
+```
+
+2. Check which processes are listening on which ports:
+```bash
+# List all listening ports
+lsof -i -P | grep LISTEN
+
+# Check specifically for port 8872
+lsof -i :8872
+```
+
+3. Verify the configuration in the service file:
+```bash
+cat /Library/LaunchAgents/com.cbots.service.plist
+```
+
+4. Common port issues and solutions:
+
+   a. If another service is using port 8872:
+   - You can modify the PORT in your .env file
+   - Stop the other service using the port
+   
+   b. If the service is not binding to all interfaces:
+   - Make sure the service is configured to listen on 0.0.0.0 not just localhost
+   
+   c. If the service is running but not accessible:
+   - Check if there's any firewall blocking the connection
+   - Try accessing with different browsers or curl command: `curl http://127.0.0.1:8872/`
+
+5. Manual startup for troubleshooting:
+```bash
+# Stop the launchd service first
+launchctl unload /Library/LaunchAgents/com.cbots.service.plist
+
+# Navigate to the project directory
+cd ~/dev/tools/jhfnetboy-CBots
+
+# Run manually to see any startup errors
+python main.py
+```
+
+This will run the service in the foreground so you can see any error messages or startup issues directly in the terminal.
