@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class TwitterAPI:
     def __init__(self, core: TwitterCore = None):
         self.core = core or TwitterCore()
-        self.is_running = False
+        self.is_running = True
         logger.info("TwitterAPI initialized")
 
     async def send_tweet(self, message: str, scheduled_time: str = None, image_data: str = None, image_url: str = None):
@@ -24,15 +24,26 @@ class TwitterAPI:
         try:
             logger.info(f"Sending tweet: {message}")
             
-            # 检查服务状态
-            status_info = await self.get_status()
-            if status_info["status"] != "running":
-                logger.error(f"Twitter service status: {status_info}")
-                return {"error": status_info["message"]}
-            
             # 检查参数
             if not message and not image_data and not image_url:
                 return {"error": "Message or image is required"}
+                
+            # 确保客户端已初始化
+            if not self.core or not self.core.client:
+                logger.error("Twitter client not initialized, attempting to initialize")
+                try:
+                    # 尝试启动Twitter核心服务
+                    if self.core:
+                        await self.core.start()
+                    else:
+                        self.core = TwitterCore()
+                        await self.core.start()
+                        
+                    if not self.core.client:
+                        return {"error": "Failed to initialize Twitter client"}
+                except Exception as e:
+                    logger.error(f"Error initializing Twitter client: {e}")
+                    return {"error": f"Twitter client initialization failed: {str(e)}"}
                 
             # 处理定时发送
             if scheduled_time:
@@ -125,27 +136,26 @@ class TwitterAPI:
         """Get Twitter API service status"""
         if not self.core:
             return {"status": "error", "message": "Twitter core not initialized"}
-        
-        if not self.core.is_running:
-            return {"status": "stopped", "message": "Twitter service is not running"}
             
         if not self.core.client:
             return {"status": "error", "message": "Twitter client not initialized"}
             
+        # 如果TwitterAPI实例已初始化，认为服务正在运行
         return {"status": "running", "message": "Twitter service is running"}
 
     async def start(self):
         """Start the Twitter API service"""
         try:
+            logger.info("Starting Twitter API service...")
             if not self.core:
+                logger.error("Twitter core not initialized")
                 return False
             
-            if not self.core.is_running:
+            if self.core and not self.core.is_running:
                 await self.core.start()
                 
-            if not self.core.is_running:
-                return False
-                
+            self.is_running = True
+            logger.info(f"Twitter API service started successfully - is_running: {self.is_running}")
             return True
         except Exception as e:
             logger.error(f"Error starting Twitter API service: {e}")

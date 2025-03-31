@@ -20,6 +20,7 @@ class TwitterCore:
         self.access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
         self.bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
         self.client = None
+        self.is_running = False
         logger.info("TwitterCore initialized")
 
     async def start(self):
@@ -48,10 +49,13 @@ class TwitterCore:
             me = self.client.get_me()
             logger.info(f"Twitter API credentials verified successfully. Connected as: {me.data.username}")
             
-            logger.info("Twitter core service started successfully")
+            # 设置服务状态为运行中
+            self.is_running = True
+            logger.info("Twitter core service started successfully - is_running: True")
             return True
             
         except Exception as e:
+            self.is_running = False
             logger.error(f"Error starting Twitter core service: {e}", exc_info=True)
             raise
 
@@ -59,6 +63,7 @@ class TwitterCore:
         """Stop the Twitter core service"""
         try:
             logger.info("Stopping Twitter core service...")
+            self.is_running = False
             logger.info("Twitter core service stopped successfully")
         except Exception as e:
             logger.error(f"Error stopping Twitter core service: {e}", exc_info=True)
@@ -109,6 +114,9 @@ class TwitterCore:
             if not self.client:
                 return {"status": "stopped"}
             
+            if not self.is_running:
+                return {"status": "stopped"}
+                
             me = self.client.get_me()
             return {
                 "status": "running",

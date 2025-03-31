@@ -18,6 +18,12 @@ from flask_cors import CORS
 # 加载环境变量
 load_dotenv()
 
+# 从web_routes导入VERSION
+try:
+    from web_routes import VERSION
+except ImportError:
+    VERSION = "unknown"
+
 # 全局变量
 telegram_client = None
 
@@ -185,6 +191,7 @@ def main():
         # 设置日志
         setup_logging()
         logger.info("Starting bot service...")
+        logger.info(f"Bot version: {VERSION}")
         
         # 创建主事件循环
         loop = asyncio.new_event_loop()
@@ -207,6 +214,10 @@ def main():
             logger.error("Telegram API service is not running")
             return
             
+        # 确保 Twitter 服务正在运行
+        logger.info(f"Twitter core service status - is_running: {service.twitter_core.is_running}")
+        logger.info(f"Twitter API service status - is_running: {service.twitter_api.is_running}")
+            
         # 设置全局变量让其他模块可以访问
         global telegram_client
         telegram_client = service.telegram_core.client
@@ -217,6 +228,7 @@ def main():
             return
             
         logger.info("All services started successfully")
+        logger.info(f"Bot version: {VERSION}")
         
         # 运行事件循环
         try:

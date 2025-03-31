@@ -27,7 +27,7 @@ telegram_api = None
 twitter_api = None
 
 # Version
-VERSION = "0.23.26"
+VERSION = "0.23.29"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -51,7 +51,19 @@ def init_web_routes(app, telegram_client):
     telegram_core.client = telegram_client
     telegram_api = TelegramAPI(core=telegram_core)
     
+    # 初始化 Twitter API 实例
     twitter_core = TwitterCore()
+    try:
+        # 确保TwitterCore启动
+        if main_loop:
+            future = asyncio.run_coroutine_threadsafe(twitter_core.start(), main_loop)
+            future.result(timeout=10)  # 设置10秒超时
+            logger.info(f"Twitter core initialized with status: is_running={twitter_core.is_running}")
+        else:
+            logger.error("Main event loop not initialized when setting up Twitter")
+    except Exception as e:
+        logger.error(f"Error initializing Twitter core: {e}")
+    
     twitter_api = TwitterAPI(core=twitter_core)
     
     # 注册蓝图
@@ -252,10 +264,12 @@ def send_tweet():
         message = data.get('message')
         scheduled_time_value = data.get('scheduled_time')  # 使用不同的变量名
         image_data = data.get('image')  # Base64 encoded image data
+        image_url = data.get('image_url')  # URL to image
         
-        logger.info(f"Received send_tweet request - Message: {message}, Scheduled: {scheduled_time_value}, Has Image: {bool(image_data)}")
+        logger.info(f"Received send_tweet request - Message: {message}, Scheduled: {scheduled_time_value}, Has Image: {bool(image_data)}, Has Image URL: {bool(image_url)}")
         
-        if not message and not image_data:
+        # 检查参数
+        if not message and not image_data and not image_url:
             logger.error("Missing message/image in request")
             return jsonify({'error': 'Message or image is required'}), 400
             
@@ -304,7 +318,8 @@ def send_tweet():
                 result = await twitter_api.send_tweet(
                     message=message,
                     scheduled_time=_scheduled_time if _scheduled_time else None,
-                    image_data=image_data
+                    image_data=image_data,
+                    image_url=image_url
                 )
                 
                 # 添加定时发送信息

@@ -41,6 +41,7 @@ ERROR_LOG=$LOGS_DIR/cbots_error_$TIMESTAMP.log
 echo -e "${YELLOW}Starting service in background...${NC}"
 (
     source venv/bin/activate
+    export MODE=prd
     nohup python main.py > $LOG_FILE 2> $ERROR_LOG &
     echo $! > $PID_FILE
 )
