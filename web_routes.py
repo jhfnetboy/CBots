@@ -27,7 +27,7 @@ telegram_api = None
 twitter_api = None
 
 # Version
-VERSION = "0.23.18"
+VERSION = "0.23.23"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -38,6 +38,13 @@ def set_main_loop(loop):
 def init_web_routes(app, telegram_client):
     """Initialize web routes with the Flask app and Telegram client"""
     global telegram_api, twitter_api
+    
+    # 获取环境变量
+    mode = os.environ.get('MODE', 'dev')
+    if mode == 'prd':
+        logger.info("Running in production mode on port 8872")
+    else:
+        logger.info("Running in development mode on port 8873")
     
     # 初始化 API 实例
     telegram_core = TelegramCore()
@@ -53,17 +60,17 @@ def init_web_routes(app, telegram_client):
 @web_bp.route('/')
 def index():
     """Root endpoint"""
-    return render_template('telegram.html', version=VERSION)
+    return render_template('telegram.html')
 
 @web_bp.route('/twitter')
 def twitter():
     """Twitter bot page"""
-    return render_template('twitter.html', version=VERSION)
+    return render_template('twitter.html')
 
 @web_bp.route('/telegram')
 def telegram():
     """Telegram bot page"""
-    return render_template('telegram.html', version=VERSION)
+    return render_template('telegram.html')
 
 @web_bp.route('/api/send_message', methods=['POST'])
 def send_message():
@@ -84,14 +91,40 @@ def send_message():
             logger.error("Missing channel or message/image in request")
             return jsonify({'error': 'Channel and message/image are required'}), 400
             
-        # Extract community name and topic ID from input format: "Account_Abstraction_Community/2817"
+        # 处理不同格式的Telegram链接
         try:
-            community_name, topic_id = channel.split('/')
-            topic_id = int(topic_id)
-            logger.info(f"Extracted community name: {community_name}, topic ID: {topic_id}")
+            community_name = None
+            topic_id = None
+            
+            # 格式1: Account_Abstraction_Community/18472
+            if '/' in channel and not channel.startswith('http'):
+                community_name, topic_id = channel.split('/')
+                topic_id = int(topic_id)
+                logger.info(f"Format 1: Extracted community name: {community_name}, topic ID: {topic_id}")
+            # 格式2: https://t.me/c/1807106448/33
+            elif channel.startswith('https://t.me/c/'):
+                parts = channel.replace('https://t.me/c/', '').split('/')
+                if len(parts) == 2:
+                    community_name = parts[0]  # 这里是数字ID
+                    topic_id = int(parts[1])
+                    logger.info(f"Format 2: Extracted channel ID: {community_name}, topic ID: {topic_id}")
+            # 格式3: https://t.me/ETHPandaOrg/25
+            elif channel.startswith('https://t.me/'):
+                parts = channel.replace('https://t.me/', '').split('/')
+                if len(parts) == 2:
+                    community_name = parts[0]  # 这里是用户名
+                    topic_id = int(parts[1])
+                    logger.info(f"Format 3: Extracted channel username: {community_name}, topic ID: {topic_id}")
+            else:
+                raise ValueError(f"Unsupported channel format: {channel}")
+                
+            if community_name is None or topic_id is None:
+                raise ValueError(f"Failed to parse channel format: {channel}")
+                
+            logger.info(f"Final parsed values - community_name: {community_name}, topic_id: {topic_id}")
         except ValueError as e:
             logger.error(f"Invalid channel format: {channel}, Error: {str(e)}")
-            return jsonify({'error': 'Invalid channel format. Use format: CommunityName/TopicID'}), 400
+            return jsonify({'error': 'Invalid channel format. Supported formats: CommunityName/TopicID, https://t.me/c/ChannelID/MessageID, or https://t.me/Username/MessageID'}), 400
             
         # 使用主事件循环
         if not main_loop:
@@ -301,4 +334,9 @@ def send_tweet():
         logger.error(f"Error in send_tweet: {str(e)}")
         logger.error(f"Error type: {type(e)}")
         logger.error(f"Error details: {str(e)}")
-        return jsonify({'error': str(e)}), 500 
+        return jsonify({'error': str(e)}), 500
+
+@web_bp.route('/api/version')
+def get_version():
+    """Get version endpoint"""
+    return jsonify({'version': VERSION}) 

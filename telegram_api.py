@@ -2,6 +2,13 @@ import logging
 import asyncio
 from datetime import datetime
 from telegram_core import TelegramCore
+import base64
+from io import BytesIO
+import time
+import aiohttp
+import re
+import os
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -13,37 +20,123 @@ class TelegramAPI:
     async def send_message(self, message: str, channel: str = None, topic_id: int = None, scheduled_time: str = None, image_data: str = None, image_url: str = None):
         """发送消息到 Telegram"""
         try:
-            # 检查服务状态
+            # 记录请求参数
             logger.info(f"TelegramAPI.send_message called with params: message={message}, channel={channel}, topic_id={topic_id}, scheduled_time={scheduled_time}, has_image={bool(image_data)}, has_image_url={bool(image_url)}")
-            logger.info(f"Checking service status - core.is_running: {self.core.is_running}, client: {self.core.client is not None}")
             
-            if not self.core.client:
-                logger.error("Telegram client is not initialized")
-                return {"error": "Telegram client not initialized"}
+            # 日志记录服务状态
+            logger.info(f"Checking service status - core.is_running: {self.core.is_running if self.core else False}, client: {bool(self.core.client if self.core else False)}")
             
-            # 明确检查 scheduled_time 类型
+            # 检查客户端是否初始化
+            if not self.core or not self.core.client:
+                logger.error("Telegram client not initialized")
+                return {'error': 'Telegram client not initialized'}
+                
+            # 记录定时发送的时间格式
             logger.info(f"scheduled_time type: {type(scheduled_time)}, value: {scheduled_time}")
             
-            # 检查 scheduled_time 是否未定义或为空
-            if scheduled_time is None or scheduled_time == "" or scheduled_time == "undefined" or scheduled_time == "null":
-                # 直发消息
-                logger.info(f"Sending immediate message to channel: {channel}, topic_id: {topic_id}, has image: {bool(image_data)}, has image URL: {bool(image_url)}")
-                return await self._send_message_now(message, channel, topic_id, image_data, image_url)
+            # 处理定时发送
+            if scheduled_time:
+                logger.info(f"Scheduling message for time: {scheduled_time}")
+                try:
+                    # 确保时间格式正确（去掉可能的Z后缀）
+                    scheduled_time = scheduled_time.replace('Z', '')
+                    scheduled_datetime = datetime.fromisoformat(scheduled_time)
+                    now = datetime.now()
+                    
+                    if scheduled_datetime <= now:
+                        logger.error("Scheduled time is in the past")
+                        return {'error': 'Scheduled time must be in the future'}
+                        
+                    delay = (scheduled_datetime - now).total_seconds()
+                    
+                    # 将延迟时间转换为可读格式
+                    days = int(delay // (24 * 3600))
+                    hours = int((delay % (24 * 3600)) // 3600)
+                    minutes = int((delay % 3600) // 60)
+                    
+                    logger.info(f"Message will be sent in {days} days, {hours} hours, {minutes} minutes")
+                    
+                    # 启动定时任务
+                    asyncio.create_task(self._send_message_later(message, channel, topic_id, delay, image_data, image_url))
+                    
+                    # 返回定时发送的状态
+                    return {
+                        'status': 'scheduled',
+                        'message': f"Message scheduled to be sent at {scheduled_datetime.isoformat()}",
+                        'delay': {
+                            'days': days,
+                            'hours': hours,
+                            'minutes': minutes,
+                            'total_seconds': delay
+                        }
+                    }
+                except ValueError as e:
+                    logger.error(f"Invalid scheduled time format: {scheduled_time}")
+                    return {'error': f'Invalid scheduled time format: {str(e)}'}
+                    
+            # 处理即时发送
+            logger.info(f"Sending immediate message to channel: {channel}, topic_id: {topic_id}, has image: {bool(image_data)}, has image URL: {bool(image_url)}")
             
-            # 如果是定时发送，创建后台任务
-            logger.info(f"Scheduling message for {scheduled_time}")
-            asyncio.create_task(self._schedule_message(message, channel, topic_id, scheduled_time, image_data, image_url))
-            return {
-                "status": "scheduled",
-                "message": "Message scheduled successfully",
-                "scheduled_time": scheduled_time
-            }
-            
+            # 处理图片
+            image_file = None
+            if image_data:
+                try:
+                    # 解码Base64图片数据
+                    image_bytes = base64.b64decode(image_data.split(',')[1])
+                    image_file = BytesIO(image_bytes)
+                    image_file.name = 'image.jpg'  # 为文件对象添加名称属性
+                except Exception as e:
+                    logger.error(f"Error processing image data: {e}")
+                    return {'error': f'Error processing image: {str(e)}'}
+            elif image_url:
+                try:
+                    # 处理可能的Markdown格式
+                    if image_url.startswith('!['):
+                        # 从Markdown中提取URL，格式可能是 ![alt](url)
+                        match = re.search(r'\!\[.*?\]\((.*?)\)', image_url)
+                        if match:
+                            image_url = match.group(1)
+                        else:
+                            return {'error': 'Invalid Markdown image format'}
+                            
+                    # 下载图片URL
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(image_url) as resp:
+                            if resp.status != 200:
+                                return {'error': f'Failed to download image from URL: {resp.status}'}
+                            image_bytes = await resp.read()
+                            image_file = BytesIO(image_bytes)
+                            # 从URL中提取文件名
+                            url_path = urlparse(image_url).path
+                            file_name = os.path.basename(url_path) or 'image.jpg'
+                            image_file.name = file_name
+                except Exception as e:
+                    logger.error(f"Error downloading image from URL: {e}")
+                    return {'error': f'Error downloading image: {str(e)}'}
+                    
+            # 发送消息
+            try:
+                if self.core:
+                    # 使用更新后的参数名调用core的send_message方法
+                    result = await self.core.send_message(
+                        message=message,
+                        channel_name=channel, 
+                        topic_id=topic_id, 
+                        image_path=image_file
+                    )
+                    return result
+                else:
+                    logger.error("Telegram core not initialized")
+                    return {'error': 'Telegram core not initialized'}
+            except Exception as e:
+                logger.error(f"Error sending message: {e}")
+                return {'error': str(e)}
+                
         except Exception as e:
-            logger.error(f"Error in TelegramAPI.send_message: {str(e)}")
+            logger.error(f"Error in send_message: {e}")
             import traceback
             logger.error(f"Stack trace: {traceback.format_exc()}")
-            return {"error": str(e)}
+            return {'error': str(e)}
 
     async def _schedule_message(self, message: str, channel: str, topic_id: int, scheduled_time: str, image_data: str = None, image_url: str = None):
         """处理定时发送消息的后台任务"""
@@ -206,4 +299,73 @@ class TelegramAPI:
             
         except Exception as e:
             logger.error(f"Error stopping Telegram API service: {str(e)}")
-            return {"error": str(e)} 
+            return {"error": str(e)}
+
+    async def _send_message_later(self, message: str, channel: str, topic_id: int, delay: float, image_data: str = None, image_url: str = None):
+        """在指定延迟后发送消息"""
+        try:
+            logger.info(f"Scheduled message task started with delay of {delay} seconds")
+            
+            # 等待指定的延迟时间
+            await asyncio.sleep(delay)
+            
+            # 处理图片
+            image_file = None
+            if image_data:
+                try:
+                    # 解码Base64图片数据
+                    image_bytes = base64.b64decode(image_data.split(',')[1])
+                    image_file = BytesIO(image_bytes)
+                    image_file.name = 'image.jpg'  # 为文件对象添加名称属性
+                except Exception as e:
+                    logger.error(f"Error processing scheduled image data: {e}")
+                    return
+            elif image_url:
+                try:
+                    # 处理可能的Markdown格式
+                    if image_url.startswith('!['):
+                        # 从Markdown中提取URL，格式可能是 ![alt](url)
+                        match = re.search(r'\!\[.*?\]\((.*?)\)', image_url)
+                        if match:
+                            image_url = match.group(1)
+                        else:
+                            logger.error("Invalid Markdown image format")
+                            return
+                            
+                    # 下载图片URL
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(image_url) as resp:
+                            if resp.status != 200:
+                                logger.error(f"Failed to download image from URL: {resp.status}")
+                                return
+                            image_bytes = await resp.read()
+                            image_file = BytesIO(image_bytes)
+                            # 从URL中提取文件名
+                            url_path = urlparse(image_url).path
+                            file_name = os.path.basename(url_path) or 'image.jpg'
+                            image_file.name = file_name
+                except Exception as e:
+                    logger.error(f"Error downloading scheduled image from URL: {e}")
+                    return
+            
+            logger.info(f"Sending scheduled message to channel: {channel}, topic_id: {topic_id}")
+            
+            # 发送消息
+            if self.core:
+                result = await self.core.send_message(
+                    message=message,
+                    channel_name=channel, 
+                    topic_id=topic_id, 
+                    image_path=image_file
+                )
+                if 'error' in result:
+                    logger.error(f"Error sending scheduled message: {result['error']}")
+                else:
+                    logger.info(f"Scheduled message sent successfully!")
+            else:
+                logger.error("Telegram core not initialized for scheduled message")
+                
+        except Exception as e:
+            logger.error(f"Error in _send_message_later: {e}")
+            import traceback
+            logger.error(f"Stack trace: {traceback.format_exc()}") 

@@ -1,7 +1,8 @@
 import logging
 import os
 from telethon import TelegramClient, events
-from telethon.tl.types import Message
+from telethon.tl.types import Message, InputPeerChannel, PeerChannel
+from telethon.errors import ChannelPrivateError
 from datetime import datetime, timedelta
 import asyncio
 from dotenv import load_dotenv
@@ -37,15 +38,50 @@ class TelegramCore:
         characters = string.ascii_letters + string.digits
         return ''.join(random.choice(characters) for _ in range(8))
 
-    async def get_group_entity(self, target):
-        """获取群组实体"""
+    async def get_group_entity(self, group_name):
+        """Get group entity by name"""
         try:
-            if not self.group_entity and target:
-                self.group_entity = await self.client.get_entity(target)
-                logger.info(f"Got group entity: {self.group_entity.title} (ID: {self.group_entity.id})")
-            return self.group_entity
+            if not self.client:
+                logger.error("Client not initialized")
+                return None
+                
+            logger.info(f"Attempting to get entity for: {group_name}")
+            
+            # 尝试将group_name解析为整数（频道ID）
+            try:
+                if str(group_name).isdigit():
+                    # 如果是纯数字，假设它是一个频道ID
+                    channel_id = int(group_name)
+                    # 对于数字ID，需要构造InputPeerChannel对象
+                    # 注意：access_hash通常是必需的，但对于bot，有时可以使用0
+                    # 在这种情况下，我们尝试直接使用ID进行查询
+                    try:
+                        peer = InputPeerChannel(channel_id=channel_id, access_hash=0)
+                        entity = await self.client.get_entity(peer)
+                        logger.info(f"Got channel entity by ID: {entity.title if hasattr(entity, 'title') else 'Unknown'} (ID: {entity.id})")
+                        return entity
+                    except Exception as e:
+                        logger.error(f"Error getting entity by direct ID: {e}")
+                        # 回退到使用构造的PeerChannel
+                        peer = PeerChannel(channel_id=channel_id)
+                        entity = await self.client.get_entity(peer)
+                        logger.info(f"Got channel entity by PeerChannel: {entity.title if hasattr(entity, 'title') else 'Unknown'} (ID: {entity.id})")
+                        return entity
+            except Exception as e:
+                logger.warning(f"Failed to get entity as numeric ID, trying as username: {e}")
+            
+            # 如果不是数字ID或上面的尝试失败，使用普通方式获取
+            group = await self.client.get_entity(group_name)
+            logger.info(f"Got group entity: {group.title} (ID: {group.id})")
+            return group
+        except ChannelPrivateError:
+            logger.error(f"Cannot access private channel: {group_name}. The bot must be a member of the channel.")
+            return None
+        except ValueError as e:
+            logger.error(f"Error getting group entity: {e}")
+            return None
         except Exception as e:
-            logger.error(f"Error getting group entity: {str(e)}")
+            logger.error(f"Error getting group entity: {e}")
             return None
 
     async def start(self):
@@ -123,61 +159,77 @@ class TelegramCore:
             logger.error(f"Error setting up event handlers: {e}", exc_info=True)
             raise
 
-    async def send_message(self, message: str, channel: str = None, topic_id: int = None, image_file: BytesIO = None):
-        """发送消息到 Telegram"""
+    async def send_message(self, message, channel_name=None, topic_id=None, image_path=None):
+        """Send a message to the target group or channel"""
         try:
-            if not self.client:
-                logger.error("Telegram client not initialized")
-                raise Exception("Telegram client not initialized")
-            
+            # 日志输出参数
             logger.info(f"Attempting to send message: {message}")
             
-            # 如果没有指定频道，使用默认群组
-            target = channel if channel else self.target_group
+            if not self.client:
+                logger.error("Telegram client not initialized")
+                return {"error": "Telegram client not initialized"}
+                
+            if not channel_name:
+                # 使用默认群组
+                channel_name = os.environ.get('TELEGRAM_GROUP')
+                if not channel_name:
+                    logger.error("No channel specified and TELEGRAM_GROUP not set in environment")
+                    return {"error": "No channel specified"}
             
             # 获取群组实体
-            logger.info(f"Attempting to get entity for: {target}")
-            group = await self.get_group_entity(target)
-            logger.info(f"Found group: {group.title} (ID: {group.id})")
+            logger.info(f"Attempting to get entity for: {channel_name}")
+            group = await self.get_group_entity(channel_name)
             
-            # 发送消息
-            if image_file:
+            if not group:
+                logger.error(f"Failed to get group entity for: {channel_name}")
+                return {"error": f"Failed to get group entity for: {channel_name}"}
+                
+            # 记录找到的群组信息
+            if hasattr(group, 'title'):
+                logger.info(f"Found group: {group.title} (ID: {group.id})")
+            else:
+                logger.info(f"Found entity with ID: {group.id} (no title available)")
+                
+            if image_path:
+                # 发送带图片的消息
+                logger.info(f"Sending message with image to topic {topic_id}")
                 if topic_id:
-                    logger.info(f"Sending image message to topic {topic_id}")
-                    response = await self.client.send_file(
+                    result = await self.client.send_message(
                         group,
-                        image_file,
-                        caption=message,
+                        message,
+                        file=image_path,
                         reply_to=topic_id
                     )
                 else:
-                    logger.info("Sending image message")
-                    response = await self.client.send_file(
+                    result = await self.client.send_message(
                         group,
-                        image_file,
-                        caption=message
+                        message,
+                        file=image_path
                     )
             else:
+                # 发送纯文本消息
                 if topic_id:
                     logger.info(f"Sending text message to topic {topic_id}")
-                    response = await self.client.send_message(
+                    result = await self.client.send_message(
                         group,
                         message,
                         reply_to=topic_id
                     )
                 else:
-                    logger.info("Sending text message")
-                    response = await self.client.send_message(
+                    logger.info("Sending text message without topic")
+                    result = await self.client.send_message(
                         group,
                         message
                     )
             
-            logger.info(f"Message sent successfully! Message ID: {response.id}")
-            return response.id
-        
+            logger.info(f"Message sent successfully! Message ID: {result.id}")
+            return {"status": "success", "message": "Message sent successfully", "message_id": result.id}
+            
         except Exception as e:
-            logger.error(f"Error sending message: {e}", exc_info=True)
-            raise
+            logger.error(f"Error sending message: {e}")
+            import traceback
+            logger.error(f"Stack trace: {traceback.format_exc()}")
+            return {"error": str(e)}
 
     async def start_daily_verification(self):
         """Start the daily verification task"""

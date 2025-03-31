@@ -12,9 +12,14 @@ from twitter_api import TwitterAPI
 from web_service import WebService
 from message_handlers import MessageHandlers
 from telethon import events
+from flask import Flask
+from flask_cors import CORS
 
 # 加载环境变量
 load_dotenv()
+
+# 全局变量
+telegram_client = None
 
 def setup_logging():
     """设置日志配置"""
@@ -131,6 +136,48 @@ class BotService:
             logger.error(f"Error in main loop: {e}", exc_info=True)
             self.is_running = False
             
+async def start_web_service():
+    """Start the web service"""
+    try:
+        # 获取环境变量
+        mode = os.environ.get('MODE', 'dev')
+        if mode == 'prd':
+            port = int(os.environ.get('PRD_PORT', 8872))
+        else:
+            port = int(os.environ.get('DEV_PORT', 8873))
+        
+        logger.info(f"Starting web service in {mode} mode on port {port}")
+        
+        # Create the Flask app
+        app = Flask(__name__, 
+                   template_folder='templates',
+                   static_folder='static',
+                   static_url_path='')
+        
+        # Set CORS policy
+        CORS(app)
+        
+        # Init web routes
+        from web_routes import init_web_routes, set_main_loop
+        set_main_loop(asyncio.get_event_loop())
+        init_web_routes(app, telegram_client)
+        
+        # Run the app
+        web_thread = threading.Thread(target=app.run, kwargs={
+            'host': '0.0.0.0',
+            'port': port,
+            'debug': False,
+            'use_reloader': False
+        })
+        web_thread.daemon = True
+        web_thread.start()
+        
+        logger.info(f"Web service started on port {port}")
+        return True
+    except Exception as e:
+        logger.error(f"Error starting web service: {e}")
+        return False
+
 def main():
     """Main entry point"""
     try:
@@ -159,20 +206,13 @@ def main():
             logger.error("Telegram API service is not running")
             return
             
-        # 创建启动事件
-        startup_event = threading.Event()
-        
+        # 设置全局变量让其他模块可以访问
+        global telegram_client
+        telegram_client = service.telegram_core.client
+            
         # 启动 Web 服务
-        web_service = WebService(service.telegram_api, service.twitter_api)
-        web_thread = threading.Thread(
-            target=lambda: web_service.run(startup_event)
-        )
-        web_thread.daemon = True
-        web_thread.start()
-        
-        # 等待 Web 服务启动
-        if not startup_event.wait(timeout=10):
-            logger.error("Web service failed to start within timeout")
+        if not loop.run_until_complete(start_web_service()):
+            logger.error("Web service failed to start")
             return
             
         logger.info("All services started successfully")

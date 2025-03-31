@@ -366,6 +366,7 @@ Available commands:
 每次修改后请运行pthon main.py
 每次更新，记得更新version，例如0.23.21 -——-》 0.23.22，递增0.01
 每次记得输出更改了那几个文件，会可能影响那些功能
+每次对CHANGES.log进行追加，追加的内容是每次修改的总结内容
 
 
 频道输入的处理方式：
@@ -759,3 +760,10 @@ python bot.py
 4. **支付系统**：支持 **社区积分** 或 **Stripe/PayPal** 进行在线支付。  
 5. **自动更新**：利用 GitHub Actions 或 CI/CD 让 Bot 代码保持最新。  
 
+### Topic link
+在telegram页面给指定topic group发送消息和定时小时，默认输入的格式是Account_Abstraction_Community/18472,会解析为1866085490/18472.
+
+现在需要兼容另外两种目标topic group的输入格式
+1. https://t.me/c/1807106448/33
+2. https://t.me/ETHPandaOrg/25
+请添加更多提示和说明，并调整代码，兼容这两种topic channel的输入格式
