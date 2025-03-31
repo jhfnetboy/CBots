@@ -27,7 +27,7 @@ telegram_api = None
 twitter_api = None
 
 # Version
-VERSION = "0.23.23"
+VERSION = "0.23.26"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -96,6 +96,10 @@ def send_message():
             community_name = None
             topic_id = None
             
+            # 预处理：去除前后空格
+            channel = channel.strip()
+            logger.info(f"Channel after stripping whitespace: '{channel}'")
+            
             # 格式1: Account_Abstraction_Community/18472
             if '/' in channel and not channel.startswith('http'):
                 community_name, topic_id = channel.split('/')
@@ -107,6 +111,8 @@ def send_message():
                 if len(parts) == 2:
                     community_name = parts[0]  # 这里是数字ID
                     topic_id = int(parts[1])
+                    # 私有频道需要处理成整数ID
+                    community_name = int(community_name)
                     logger.info(f"Format 2: Extracted channel ID: {community_name}, topic ID: {topic_id}")
             # 格式3: https://t.me/ETHPandaOrg/25
             elif channel.startswith('https://t.me/'):
@@ -244,10 +250,10 @@ def send_tweet():
     try:
         data = request.get_json()
         message = data.get('message')
-        scheduled_time = data.get('scheduled_time')
+        scheduled_time_value = data.get('scheduled_time')  # 使用不同的变量名
         image_data = data.get('image')  # Base64 encoded image data
         
-        logger.info(f"Received send_tweet request - Message: {message}, Scheduled: {scheduled_time}, Has Image: {bool(image_data)}")
+        logger.info(f"Received send_tweet request - Message: {message}, Scheduled: {scheduled_time_value}, Has Image: {bool(image_data)}")
         
         if not message and not image_data:
             logger.error("Missing message/image in request")
@@ -263,13 +269,14 @@ def send_tweet():
                 # 计算定时发送的延迟时间
                 delay_info = None
                 scheduled_datetime = None
+                _scheduled_time = scheduled_time_value  # 在函数作用域内使用本地变量
                 now = datetime.now()
                 
-                if scheduled_time:
+                if _scheduled_time:
                     try:
                         # 解析时间字符串，移除 'Z' 后缀
-                        scheduled_time = scheduled_time.replace('Z', '')
-                        scheduled_datetime = datetime.fromisoformat(scheduled_time)
+                        _scheduled_time = _scheduled_time.replace('Z', '')
+                        scheduled_datetime = datetime.fromisoformat(_scheduled_time)
                         
                         # 如果时间已经过去，返回错误
                         if scheduled_datetime <= now:
@@ -290,13 +297,13 @@ def send_tweet():
                         }
                         logger.info(f"Tweet scheduled for {delay_info}")
                     except ValueError as e:
-                        logger.error(f"Invalid scheduled time format: {scheduled_time}")
+                        logger.error(f"Invalid scheduled time format: {_scheduled_time}")
                         return jsonify({'error': f'Invalid scheduled time format: {str(e)}'}), 400
                 
                 # 发送推文
                 result = await twitter_api.send_tweet(
                     message=message,
-                    scheduled_time=scheduled_time if scheduled_time else None,
+                    scheduled_time=_scheduled_time if _scheduled_time else None,
                     image_data=image_data
                 )
                 

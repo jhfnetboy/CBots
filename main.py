@@ -144,7 +144,8 @@ async def start_web_service():
         if mode == 'prd':
             port = int(os.environ.get('PRD_PORT', 8872))
         else:
-            port = int(os.environ.get('DEV_PORT', 8873))
+            # 尝试使用一个不太可能被占用的端口
+            port = int(os.environ.get('DEV_PORT', 9873))
         
         logger.info(f"Starting web service in {mode} mode on port {port}")
         

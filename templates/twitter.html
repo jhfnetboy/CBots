@@ -85,11 +85,27 @@
                             <span id="charCount">0</span>/280 characters
                         </div>
                     </div>
-                    <div class="mb-3 image-upload">
-                        <label for="image" class="form-label">Image (Optional)</label>
-                        <input type="file" class="form-control" id="image" accept="image/*">
-                        <small class="form-text text-muted">Max file size: 950KB</small>
-                        <div id="imagePreview" class="image-preview"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Image (Optional)</label>
+                        <ul class="nav nav-tabs" id="imageTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-content" type="button" role="tab">Upload Image</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="url-tab" data-bs-toggle="tab" data-bs-target="#url-content" type="button" role="tab">Image URL</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="imageTabsContent">
+                            <div class="tab-pane fade show active" id="upload-content" role="tabpanel">
+                                <input type="file" class="form-control mt-2" id="image" accept="image/*">
+                                <small class="form-text text-muted">Max file size: 950KB</small>
+                            </div>
+                            <div class="tab-pane fade" id="url-content" role="tabpanel">
+                                <input type="text" class="form-control mt-2" id="imageUrl" placeholder="Enter image URL or Markdown format: ![](https://example.com/image.jpg)">
+                                <small class="form-text text-muted">Direct link to image or Markdown format</small>
+                            </div>
+                        </div>
+                        <div id="imagePreview" class="image-preview mt-2"></div>
                     </div>
                     <div class="mb-3">
                         <label for="scheduled_time" class="form-label">Schedule Time (Optional)</label>
@@ -119,7 +135,9 @@
             });
 
         let selectedImage = null;
+        let selectedImageSource = 'upload'; // 'upload' or 'url'
 
+        // Handle image file upload
         document.getElementById('image').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -133,11 +151,48 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     selectedImage = e.target.result;
+                    selectedImageSource = 'upload';
                     const preview = document.getElementById('imagePreview');
                     preview.innerHTML = `<img src="${selectedImage}" style="max-width: 100%;">`;
                 };
                 reader.readAsDataURL(file);
             }
+        });
+
+        // Handle image URL input
+        document.getElementById('imageUrl').addEventListener('input', function(e) {
+            const url = this.value.trim();
+            if (url) {
+                selectedImage = url;
+                selectedImageSource = 'url';
+                
+                // Preview only for direct image URLs, not for markdown format
+                if (!url.startsWith('![')) {
+                    const preview = document.getElementById('imagePreview');
+                    preview.innerHTML = `<img src="${url}" style="max-width: 100%;" onerror="imageLoadError(this)">`;
+                } else {
+                    // For markdown format, show a placeholder
+                    const preview = document.getElementById('imagePreview');
+                    preview.innerHTML = '<div class="alert alert-info">Markdown image format detected. Preview not available.</div>';
+                }
+            }
+        });
+
+        // Handle image load error
+        function imageLoadError(img) {
+            img.onerror = null;
+            img.src = '';
+            document.getElementById('imagePreview').innerHTML = '<div class="alert alert-warning">Unable to load image from URL</div>';
+        }
+
+        // Clear previously selected image when switching tabs
+        document.querySelectorAll('#imageTabs button').forEach(button => {
+            button.addEventListener('click', function() {
+                selectedImage = null;
+                document.getElementById('imagePreview').innerHTML = '';
+                document.getElementById('image').value = '';
+                document.getElementById('imageUrl').value = '';
+            });
         });
 
         // Character counter
@@ -158,34 +213,35 @@
         document.getElementById('tweetForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            await sendTweet();
+        });
+
+        async function sendTweet() {
             const message = document.getElementById('message').value;
             const scheduledTime = document.getElementById('scheduled_time').value;
             const statusDiv = document.getElementById('status');
             
-            if (message.length > 280) {
-                statusDiv.innerHTML = `
-                    <div class="alert alert-danger">
-                        Error: Tweet cannot exceed 280 characters
-                    </div>
-                `;
+            if (!message && !selectedImage) {
+                statusDiv.innerHTML = '<div class="alert alert-danger">Please provide a message or image</div>';
                 return;
             }
-            
+
             try {
-                statusDiv.innerHTML = `
-                    <div class="alert alert-info">
-                        Sending tweet...
-                    </div>
-                `;
-                
                 const data = {
                     message: message,
                     scheduled_time: scheduledTime || null
                 };
 
+                // Add image data based on source
                 if (selectedImage) {
-                    data.image = selectedImage;
+                    if (selectedImageSource === 'upload') {
+                        data.image = selectedImage;
+                    } else if (selectedImageSource === 'url') {
+                        data.image_url = selectedImage;
+                    }
                 }
+
+                statusDiv.innerHTML = '<div class="alert alert-info">Sending tweet...</div>';
 
                 const response = await fetch('/api/send_tweet', {
                     method: 'POST',
@@ -199,45 +255,25 @@
                 
                 if (response.ok) {
                     if (result.status === 'scheduled') {
-                        // Scheduled message success
+                        // Scheduled tweet success
                         const delayInfo = result.scheduled_info?.delay;
                         if (delayInfo) {
-                            const delayText = `Message scheduled to be sent in ${delayInfo.days} days, ${delayInfo.hours} hours, ${delayInfo.minutes} minutes`;
-                            statusDiv.innerHTML = `
-                                <div class="alert alert-success">
-                                    ${delayText}
-                                </div>
-                            `;
+                            statusDiv.innerHTML = `<div class="alert alert-success">Tweet scheduled to be sent in ${delayInfo.days} days, ${delayInfo.hours} hours, ${delayInfo.minutes} minutes</div>`;
                         } else {
-                            statusDiv.innerHTML = `
-                                <div class="alert alert-success">
-                                    Tweet scheduled for delivery!
-                                </div>
-                            `;
+                            statusDiv.innerHTML = '<div class="alert alert-success">Tweet scheduled for delivery</div>';
                         }
                     } else {
                         // Immediate send success
-                        statusDiv.innerHTML = `
-                            <div class="alert alert-success">
-                                Tweet sent successfully! ${result.url ? `<a href="${result.url}" target="_blank">View tweet</a>` : ''}
-                            </div>
-                        `;
+                        statusDiv.innerHTML = '<div class="alert alert-success">Tweet sent successfully!</div>';
                     }
                 } else {
-                    statusDiv.innerHTML = `
-                        <div class="alert alert-danger">
-                            Error: ${result.error}
-                        </div>
-                    `;
+                    statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${result.error}</div>`;
                 }
             } catch (error) {
-                statusDiv.innerHTML = `
-                    <div class="alert alert-danger">
-                        Error: ${error.message}
-                    </div>
-                `;
+                console.error('Error:', error);
+                statusDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
             }
-        });
+        }
     </script>
     <div class="version">Version: {{ version }}</div>
 </body>

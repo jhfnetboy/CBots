@@ -49,24 +49,35 @@ class TelegramCore:
             
             # 尝试将group_name解析为整数（频道ID）
             try:
-                if str(group_name).isdigit():
-                    # 如果是纯数字，假设它是一个频道ID
+                if isinstance(group_name, int) or (isinstance(group_name, str) and str(group_name).isdigit()):
+                    # 如果是整数或纯数字，假设它是一个频道ID
                     channel_id = int(group_name)
-                    # 对于数字ID，需要构造InputPeerChannel对象
-                    # 注意：access_hash通常是必需的，但对于bot，有时可以使用0
-                    # 在这种情况下，我们尝试直接使用ID进行查询
+                    logger.info(f"Processing numeric channel ID: {channel_id}")
+                    # 尝试不同的方法获取实体
                     try:
+                        # 方法1: 使用InputPeerChannel
                         peer = InputPeerChannel(channel_id=channel_id, access_hash=0)
                         entity = await self.client.get_entity(peer)
-                        logger.info(f"Got channel entity by ID: {entity.title if hasattr(entity, 'title') else 'Unknown'} (ID: {entity.id})")
+                        logger.info(f"Got channel entity by InputPeerChannel: {entity.title if hasattr(entity, 'title') else 'Unknown'} (ID: {entity.id})")
                         return entity
-                    except Exception as e:
-                        logger.error(f"Error getting entity by direct ID: {e}")
-                        # 回退到使用构造的PeerChannel
-                        peer = PeerChannel(channel_id=channel_id)
-                        entity = await self.client.get_entity(peer)
-                        logger.info(f"Got channel entity by PeerChannel: {entity.title if hasattr(entity, 'title') else 'Unknown'} (ID: {entity.id})")
-                        return entity
+                    except Exception as e1:
+                        logger.warning(f"Method 1 failed: {e1}")
+                        try:
+                            # 方法2: 使用PeerChannel
+                            peer = PeerChannel(channel_id=channel_id)
+                            entity = await self.client.get_entity(peer)
+                            logger.info(f"Got channel entity by PeerChannel: {entity.title if hasattr(entity, 'title') else 'Unknown'} (ID: {entity.id})")
+                            return entity
+                        except Exception as e2:
+                            logger.warning(f"Method 2 failed: {e2}")
+                            try:
+                                # 方法3: 直接使用ID
+                                entity = await self.client.get_entity(channel_id)
+                                logger.info(f"Got channel entity by direct ID: {entity.title if hasattr(entity, 'title') else 'Unknown'} (ID: {entity.id})")
+                                return entity
+                            except Exception as e3:
+                                logger.error(f"All methods failed for numeric ID {channel_id}: {e3}")
+                                raise
             except Exception as e:
                 logger.warning(f"Failed to get entity as numeric ID, trying as username: {e}")
             
@@ -104,7 +115,9 @@ class TelegramCore:
             if missing_vars:
                 raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
                 
-            session_file = "telegram_core_session"
+            # 使用时间戳创建唯一的session文件名
+            current_time = datetime.now().strftime("%Y%m%d%H%M%S")
+            session_file = f"sessions/telegram_session_{current_time}"
             self.client = TelegramClient(session_file, self.api_id, self.api_hash)
             
             await self.client.start(bot_token=self.bot_token)
