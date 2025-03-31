@@ -192,4 +192,9 @@ bot_session.session
 .netlify
 bot.session
 bot.session-journal
+
 cbots.pid
+
+bot.pid
+web.pid
+

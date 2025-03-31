@@ -1,6 +1,42 @@
 # CBots
 a bot for community operation and social media.
 COS72系统下的bot 模块。
+## V0.23 release
+### Unti-spam-bot:Mute new user automatically
++ Until new user send daily password to bot privately.
+Bot say hi to new user with daily password.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301914599.png)
+New use was muted when enter group.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913867.png)
+Send daily password to bot privately.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913115.png)
+Then you can speak.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913367.png)
+Auto mute new user multiple times.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301915772.png)
+
+### Command self-define
+Support multi command with convinience.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301923445.png)
+Call bot in any channel with /command.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301923978.png)
+We will add more features based on command, like query balance, get token price and etc.
+We will add **AI agents** later~!
+
+### Web page interface
+You can send direct message to bot by web page interface.
+We have a schedule to send message to telegram channel or your twitter account.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301926329.png)
+We also add Twitter bot.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301926127.png)
+You can send words with picture.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913031.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913464.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913816.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913161.png)
+Our bot logs:
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913150.png)
+
 ## V0.22 release
 ### Features
 这是一个Python开发的机器人，目标是作为社区运营的Social media bot,提升运营效率。
@@ -651,3 +687,75 @@ python main.py
 ```
 
 This will run the service in the foreground so you can see any error messages or startup issues directly in the terminal.
+这里是对你的说明文档的优化和补充，使其更清晰易懂，并包含云服务的详细方案：
+
+---
+
+## 社区安装指南
+
+本项目是一个 **开源、免费、持续维护** 的 Telegram Bot，任何社区都可以自由安装和使用。  
+您可以选择自行部署，或使用 **AAStar 云服务** 快速启动。
+
+### 方式一：社区自运营（自行安装）
+
+如果您希望在自己的服务器上运行本 Bot，请按照以下步骤操作：
+
+#### 1. 克隆代码并安装依赖
+确保您的服务器运行的是 **macOS 或 Linux**，然后执行以下命令：
+```bash
+git clone https://github.com/your-repo/telegram-bot.git
+cd telegram-bot
+pip install -r requirements.txt
+```
+
+#### 2. 获取 Telegram Bot Token
+1. 访问 [@BotFather](https://t.me/BotFather)，创建一个新的 bot。  
+2. 复制生成的 **Bot Token**，备用。
+
+#### 3. 配置环境变量
+创建 `.env` 文件，并填入您的 Bot Token：
+```bash
+BOT_TOKEN=your-telegram-bot-token
+```
+
+#### 4. 运行 Bot
+```bash
+python bot.py
+```
+至此，您的 Bot 应该已经运行成功 🎉
+
+---
+
+### 方式二：AAStar 云服务（推荐）
+
+如果不想自己部署，可以选择 **AAStar 云服务**，我们提供 **一键部署**，让您无需配置服务器，即可快速上线。
+
+#### **云服务特点**
+- **免服务器**：无需购买和维护服务器  
+- **自动更新**：Bot 会自动获取最新版本  
+- **高可用性**：服务器 24/7 运行，不会因本地设备关机而停止  
+
+#### **使用方法**
+1. **注册 AAStar 云服务**  
+   访问 [AAStar 官方网站](https://your-cloud-service.com) 并注册账户。
+   
+2. **创建 Bot**  
+   在管理面板中输入 **Bot Token**，点击 "部署"。
+
+3. **选择支付方式**
+   - **社区积分**（适用于已有积分的社区用户）  
+   - **直接支付**（按月或按年订阅）
+
+4. **启动 Bot**  
+   部署完成后，您会收到一个 Bot 运行状态的通知，Bot 将立即上线 🎉。
+
+---
+
+## **云服务技术方案建议**
+如果您想自己搭建类似的云服务，建议采用以下架构：
+1. **服务器**：使用 supabase function
+2. **数据库**：使用 **supabase postgresql** 存储用户数据和 Bot 状态。  
+3. **后台管理面板**：开发一个 **Web Dashboard**，用户可以在上面输入 Token 并管理 Bot。  
+4. **支付系统**：支持 **社区积分** 或 **Stripe/PayPal** 进行在线支付。  
+5. **自动更新**：利用 GitHub Actions 或 CI/CD 让 Bot 代码保持最新。  
+
