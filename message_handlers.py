@@ -9,7 +9,7 @@ class MessageHandlers:
         self.client = client
         self.daily_password = daily_password
         self.target_group = target_group
-        self.VERSION = "0.23.45"  # 更新版本号
+        self.VERSION = "0.23.48"  # 更新版本号
 
     async def handle_new_member(self, event):
         """Handle new member joined event"""
@@ -64,10 +64,8 @@ class MessageHandlers:
             elif command.lower() == '/help':
                 await self.handle_help_command(event)
             elif command.lower() == '/pass':
-                if is_private:
-                    await event.reply(f"今日密码：{self.daily_password}")
-                else:
-                    await event.reply("请私聊机器人获取密码。")
+                # 在任何场景都直接回复当日密码
+                await event.reply(f"Today's password: {self.daily_password}")
             elif command.lower() == '/version':
                 await self.handle_version_command(event)
             elif command.lower() == '/price':
@@ -173,6 +171,12 @@ class MessageHandlers:
             sender = await event.get_sender()
             message_text = event.message.text
             
+            # 处理命令消息
+            if message_text.startswith('/'):
+                await self.handle_command(event, message_text)
+                return
+                
+            # 处理普通消息（密码验证等）
             # 检查是否是解禁密码
             if message_text == self.daily_password:
                 # 直接使用目标群组

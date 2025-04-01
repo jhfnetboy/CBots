@@ -10,6 +10,7 @@ from telegram_core import TelegramCore
 from twitter_core import TwitterCore
 from telegram_api import TelegramAPI
 from twitter_api import TwitterAPI
+import hashlib
 
 # Configure logging
 logging.basicConfig(
@@ -25,9 +26,11 @@ web_bp = Blueprint('web', __name__)
 main_loop = None
 telegram_api = None
 twitter_api = None
+# 存储最近发送消息的记录，用于防止重复发送
+recent_messages = {}
 
 # Version
-VERSION = "0.23.45"
+VERSION = "0.23.48"
 
 def set_main_loop(loop):
     """Set the main event loop"""
@@ -83,6 +86,26 @@ def send_message():
         if not channel or (not message and not image_data and not image_url):
             logger.error("Missing channel or message/image in request")
             return jsonify({'error': 'Channel and message/image are required'}), 400
+        
+        # 生成消息唯一标识，用于防止重复发送
+        message_hash = hashlib.md5(f"{channel}_{message}_{scheduled_time}_{bool(image_data)}_{image_url}".encode()).hexdigest()
+        
+        # 检查是否是重复发送（5秒内）
+        current_time = datetime.now().timestamp()
+        if message_hash in recent_messages:
+            last_time = recent_messages[message_hash]
+            # 如果在5秒内重复发送，则拒绝
+            if current_time - last_time < 5:
+                logger.warning(f"Duplicate message detected within 5 seconds: {message_hash}")
+                return jsonify({'error': 'Please wait a moment before sending the same message again'}), 429
+        
+        # 更新最近发送记录
+        recent_messages[message_hash] = current_time
+        
+        # 清理旧记录（保留10分钟内的）
+        expired_keys = [k for k, v in recent_messages.items() if current_time - v > 600]
+        for key in expired_keys:
+            del recent_messages[key]
             
         # Extract community name and topic ID from input format: "Account_Abstraction_Community/2817"
         try:
@@ -219,6 +242,26 @@ def send_tweet():
         if not message and not image_data:
             logger.error("Missing message/image in request")
             return jsonify({'error': 'Message or image is required'}), 400
+            
+        # 生成消息唯一标识，用于防止重复发送
+        message_hash = hashlib.md5(f"tweet_{message}_{scheduled_time}_{bool(image_data)}".encode()).hexdigest()
+        
+        # 检查是否是重复发送（5秒内）
+        current_time = datetime.now().timestamp()
+        if message_hash in recent_messages:
+            last_time = recent_messages[message_hash]
+            # 如果在5秒内重复发送，则拒绝
+            if current_time - last_time < 5:
+                logger.warning(f"Duplicate tweet detected within 5 seconds: {message_hash}")
+                return jsonify({'error': 'Please wait a moment before sending the same tweet again'}), 429
+        
+        # 更新最近发送记录
+        recent_messages[message_hash] = current_time
+        
+        # 清理旧记录（保留10分钟内的）
+        expired_keys = [k for k, v in recent_messages.items() if current_time - v > 600]
+        for key in expired_keys:
+            del recent_messages[key]
             
         # 使用主事件循环
         if not main_loop:

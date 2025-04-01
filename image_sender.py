@@ -106,10 +106,16 @@ class ImageSender:
                 image_file.name = file_name
                 logger.info(f"Image file had no name, set to: {file_name}")
                 
+            # 确保文件扩展名是 jpeg
+            if not image_file.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
+                original_name = image_file.name
+                image_file.name = f"{os.path.splitext(image_file.name)[0]}.jpeg"
+                logger.info(f"Changed image file extension from {original_name} to {image_file.name}")
+                
             # 记录图片详情
             logger.info(f"Image details - Name: {image_file.name}, Size: {len(image_file.getvalue())} bytes")
             
-            # 发送消息
+            # 使用 force_document=True 强制作为文档发送，避免 Telethon 对照片格式的验证
             if reply_to:
                 logger.info(f"Sending image to topic {reply_to}")
                 result = await client.send_file(
@@ -117,7 +123,7 @@ class ImageSender:
                     file=image_file,
                     caption=message,
                     reply_to=reply_to,
-                    force_document=True  # 强制作为文档发送，避免扩展名问题
+                    force_document=True
                 )
             else:
                 logger.info("Sending image")
@@ -125,7 +131,7 @@ class ImageSender:
                     entity=entity,
                     file=image_file,
                     caption=message,
-                    force_document=True  # 强制作为文档发送，避免扩展名问题
+                    force_document=True
                 )
                 
             logger.info(f"Image message sent successfully! ID: {result.id}")
