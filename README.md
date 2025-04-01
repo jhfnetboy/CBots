@@ -261,15 +261,22 @@ app.py 现在专注于：
 更容易测试和扩展
 
 
-## 部署
+## 部署deploy
 
 # 创建 Python 3.12 虚拟环境
+
+
+python3 -m venv path/to/venv
+source path/to/venv/bin/activate
+python3 -m pip install xyz
+
 uv python install 3.12
 uv venv --python 3.12
 source .venv/bin/activate
 
 # 安装依赖
 pip install -r requirements.txt
+mkdir -p sessions
 
 # 1. 安装 Netlify CLI
 npm install -g netlify-cli

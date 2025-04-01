@@ -1,8 +1,9 @@
 # 核心依赖
 python-dotenv==1.0.0
 telethon==1.31.0
-flask==2.0.1
-tweepy==4.14.0
+# flask==2.0.1
+flask==3.0.2
+tweepy==4.12.1
 asyncio==3.4.3
 aiohttp==3.9.1
 requests==2.31.0

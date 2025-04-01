@@ -1,3 +1,4 @@
+import tweepy_patch  # 添加补丁导入
 import logging
 import asyncio
 import threading

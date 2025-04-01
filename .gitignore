@@ -11,6 +11,7 @@ tmp/*.*
 .netlify
 .netlify/*
 bot_session.session
+sessions/*
 path/*
 path/to/env/*
 path/to/env/*.*
