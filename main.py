@@ -48,22 +48,22 @@ class BotService:
                 return False
                 
             # 启动 Twitter 核心服务 (可选)
-            # if self.twitter_core:
-            #     if not await self.twitter_core.start():
-            #         print("Failed to start Twitter core service")
-            #         # Twitter 服务失败不影响整体运行
-            #         print("Continuing without Twitter service")
+            if self.twitter_core:
+                if not await self.twitter_core.start():
+                    print("Failed to start Twitter core service")
+                    # Twitter 服务失败不影响整体运行
+                    print("Continuing without Twitter service")
             
             # 启动 API 服务
             if not await self.telegram_api.start():
                 print("Failed to start Telegram API service")
                 return False
                 
-            # if self.twitter_api:
-            #     if not await self.twitter_api.start():
-            #         print("Failed to start Twitter API service")
-            #         # Twitter API 服务失败不影响整体运行
-            #         print("Continuing without Twitter API service")
+            if self.twitter_api:
+                if not await self.twitter_api.start():
+                    print("Failed to start Twitter API service")
+                    # Twitter API 服务失败不影响整体运行
+                    print("Continuing without Twitter API service")
             
             # 更新状态
             self.is_running = True
