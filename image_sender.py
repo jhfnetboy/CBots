@@ -105,37 +105,70 @@ class ImageSender:
                 file_name = f"image_{int(time.time())}.jpeg"
                 image_file.name = file_name
                 logger.info(f"Image file had no name, set to: {file_name}")
-                
-            # 确保文件扩展名是 jpeg
-            if not image_file.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
-                original_name = image_file.name
-                image_file.name = f"{os.path.splitext(image_file.name)[0]}.jpeg"
+            
+            # 检查文件扩展名，确保是 .jpg 或 .jpeg (Telethon 对这些格式支持最好)
+            original_name = image_file.name
+            file_base, file_ext = os.path.splitext(image_file.name)
+            file_ext = file_ext.lower().lstrip('.')
+            
+            # 如果不是 jpeg/jpg 格式，强制转换为 jpeg
+            if file_ext not in ['jpg', 'jpeg']:
+                image_file.name = f"{file_base}.jpeg"
                 logger.info(f"Changed image file extension from {original_name} to {image_file.name}")
-                
+            
             # 记录图片详情
             logger.info(f"Image details - Name: {image_file.name}, Size: {len(image_file.getvalue())} bytes")
             
-            # 使用 force_document=True 强制作为文档发送，避免 Telethon 对照片格式的验证
-            if reply_to:
-                logger.info(f"Sending image to topic {reply_to}")
-                result = await client.send_file(
-                    entity=entity,
-                    file=image_file,
-                    caption=message,
-                    reply_to=reply_to,
-                    force_document=True
-                )
-            else:
-                logger.info("Sending image")
-                result = await client.send_file(
-                    entity=entity,
-                    file=image_file,
-                    caption=message,
-                    force_document=True
-                )
+            # 从 BytesIO 对象提取原始字节，确保数据完整
+            image_bytes = image_file.getvalue()
+            
+            # 创建新的 BytesIO 对象，避免之前对象可能的读取位置问题
+            fresh_image = BytesIO(image_bytes)
+            fresh_image.name = image_file.name
+            
+            # 尝试两种方式发送图片
+            try:
+                # 第一种方式：作为照片发送
+                logger.info(f"Attempting to send as photo with name: {fresh_image.name}")
+                if reply_to:
+                    result = await client.send_file(
+                        entity=entity,
+                        file=fresh_image,
+                        caption=message,
+                        reply_to=reply_to
+                    )
+                else:
+                    result = await client.send_file(
+                        entity=entity,
+                        file=fresh_image,
+                        caption=message
+                    )
+                logger.info(f"Image message sent successfully! ID: {result.id}")
+                return result.id
+            except Exception as e:
+                # 如果第一种方式失败，尝试作为文档发送
+                logger.warning(f"Failed to send as photo: {e}, trying as document")
+                fresh_image = BytesIO(image_bytes)  # 重新创建对象
+                fresh_image.name = image_file.name
                 
-            logger.info(f"Image message sent successfully! ID: {result.id}")
-            return result.id
+                if reply_to:
+                    result = await client.send_file(
+                        entity=entity,
+                        file=fresh_image,
+                        caption=message,
+                        reply_to=reply_to,
+                        force_document=True
+                    )
+                else:
+                    result = await client.send_file(
+                        entity=entity,
+                        file=fresh_image,
+                        caption=message,
+                        force_document=True
+                    )
+                logger.info(f"Image message sent as document successfully! ID: {result.id}")
+                return result.id
+                
         except Exception as e:
             logger.error(f"Error sending image message: {e}")
             raise 

@@ -9,7 +9,7 @@ class MessageHandlers:
         self.client = client
         self.daily_password = daily_password
         self.target_group = target_group
-        self.VERSION = "0.23.48"  # 更新版本号
+        self.VERSION = "0.23.50"  # 独立的版本号定义
 
     async def handle_new_member(self, event):
         """Handle new member joined event"""
