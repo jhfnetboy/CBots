@@ -405,7 +405,7 @@ API 只允许本地访问，提高安全性
 确保环境变量已设置（TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_BOT_TOKEN 等）
 运行 python main.py 启动所有服务
 Web 界面将在 http://localhost:8080 可用
-API 服务将在 http://localhost:5000 可用（仅本地访问）
+
 需要注意的是：
 API 服务只允许本地访问，外部请求会被拒绝
 Web 服务通过本地 API 与核心服务通信

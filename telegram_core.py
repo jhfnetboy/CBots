@@ -9,6 +9,8 @@ import random
 import string
 from message_handlers import MessageHandlers
 from io import BytesIO
+import time
+from image_sender import ImageSender
 
 # Configure logging
 logging.basicConfig(
@@ -123,61 +125,114 @@ class TelegramCore:
             logger.error(f"Error setting up event handlers: {e}", exc_info=True)
             raise
 
-    async def send_message(self, message: str, channel: str = None, topic_id: int = None, image_file: BytesIO = None):
-        """发送消息到 Telegram"""
+    async def send_message(self, message: str, channel_name: str = None, topic_id: int = None, image_path: str = None):
+        """发送消息到指定频道或群组"""
         try:
-            if not self.client:
-                logger.error("Telegram client not initialized")
-                raise Exception("Telegram client not initialized")
-            
             logger.info(f"Attempting to send message: {message}")
             
-            # 如果没有指定频道，使用默认群组
-            target = channel if channel else self.target_group
-            
-            # 获取群组实体
-            logger.info(f"Attempting to get entity for: {target}")
-            group = await self.get_group_entity(target)
-            logger.info(f"Found group: {group.title} (ID: {group.id})")
+            # 获取频道或群组实体
+            logger.info(f"Attempting to get entity for: {channel_name}")
+            entity = await self.get_group_entity(channel_name)
+            if not entity:
+                return {"error": f"Could not find channel/group: {channel_name}"}
+                
+            # 如果是群组，记录群组信息
+            if hasattr(entity, 'id'):
+                logger.info(f"Found group: {entity.title} (ID: {entity.id})")
             
             # 发送消息
-            if image_file:
-                if topic_id:
-                    logger.info(f"Sending image message to topic {topic_id}")
-                    response = await self.client.send_file(
-                        group,
-                        image_file,
-                        caption=message,
-                        reply_to=topic_id
-                    )
-                else:
-                    logger.info("Sending image message")
-                    response = await self.client.send_file(
-                        group,
-                        image_file,
-                        caption=message
-                    )
+            if topic_id:
+                logger.info(f"Sending message to topic {topic_id}")
+                try:
+                    if image_path:
+                        # 处理图片
+                        # 如果是 BytesIO 对象，确保有文件名
+                        if isinstance(image_path, BytesIO):
+                            # 确保图片文件有名称属性，这对 Telethon 很重要
+                            if not hasattr(image_path, 'name') or not image_path.name:
+                                file_name = f"image_{int(time.time())}.jpeg"
+                                image_path.name = file_name
+                                logger.info(f"Image file had no name, set to: {file_name}")
+                            
+                            logger.info(f"Sending message with image: {image_path.name}")
+                            # 使用 ImageSender 发送图片
+                            result_id = await ImageSender.send_image_message(
+                                client=self.client,
+                                entity=entity,
+                                message=message,
+                                image_file=image_path,
+                                reply_to=topic_id
+                            )
+                            return {"status": "success", "message_id": result_id}
+                        else:
+                            # 如果是文件路径，直接发送
+                            logger.info(f"Sending message with image file: {image_path}")
+                            result = await self.client.send_file(
+                                entity=entity,
+                                file=image_path, 
+                                caption=message,
+                                reply_to=topic_id
+                            )
+                            return {"status": "success", "message_id": result.id}
+                    else:
+                        # 发送纯文本消息
+                        result = await self.client.send_message(
+                            entity=entity,
+                            message=message,
+                            reply_to=topic_id
+                        )
+                        return {"status": "success", "message_id": result.id}
+                except Exception as e:
+                    logger.error(f"Error sending message with topic: {e}")
+                    logger.error(f"Image details - Type: {type(image_path)}, Name: {image_path.name if hasattr(image_path, 'name') else 'unknown'}")
+                    raise
             else:
-                if topic_id:
-                    logger.info(f"Sending text message to topic {topic_id}")
-                    response = await self.client.send_message(
-                        group,
-                        message,
-                        reply_to=topic_id
-                    )
+                if image_path:
+                    try:
+                        # 处理图片
+                        # 如果是 BytesIO 对象，确保有文件名
+                        if isinstance(image_path, BytesIO):
+                            # 确保图片文件有名称属性，这对 Telethon 很重要
+                            if not hasattr(image_path, 'name') or not image_path.name:
+                                file_name = f"image_{int(time.time())}.jpeg"
+                                image_path.name = file_name
+                                logger.info(f"Image file had no name, set to: {file_name}")
+                            
+                            logger.info(f"Sending message with image: {image_path.name}")
+                            # 使用 ImageSender 发送图片
+                            result_id = await ImageSender.send_image_message(
+                                client=self.client,
+                                entity=entity,
+                                message=message,
+                                image_file=image_path
+                            )
+                            return {"status": "success", "message_id": result_id}
+                        else:
+                            # 如果是文件路径，直接发送
+                            logger.info(f"Sending message with image file: {image_path}")
+                            result = await self.client.send_file(
+                                entity=entity,
+                                file=image_path, 
+                                caption=message
+                            )
+                            return {"status": "success", "message_id": result.id}
+                    except Exception as e:
+                        logger.error(f"Error sending message with image: {e}")
+                        logger.error(f"Image details - Type: {type(image_path)}, Name: {image_path.name if hasattr(image_path, 'name') else 'unknown'}")
+                        raise
                 else:
-                    logger.info("Sending text message")
-                    response = await self.client.send_message(
-                        group,
-                        message
+                    # 发送纯文本消息
+                    result = await self.client.send_message(
+                        entity=entity,
+                        message=message
                     )
+                    return {"status": "success", "message_id": result.id}
             
-            logger.info(f"Message sent successfully! Message ID: {response.id}")
-            return response.id
-        
         except Exception as e:
-            logger.error(f"Error sending message: {e}", exc_info=True)
-            raise
+            logger.error(f"Error sending message: {e}")
+            import traceback
+            logger.error(f"Stack trace: {traceback.format_exc()}")
+            return {"error": str(e)}
 
     async def start_daily_verification(self):
         """Start the daily verification task"""

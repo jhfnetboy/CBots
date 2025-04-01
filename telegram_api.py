@@ -80,28 +80,20 @@ class TelegramAPI:
         try:
             if image_data or image_url:
                 # 处理图片
-                import base64
-                from io import BytesIO
-                import time
-                import aiohttp
-                import re
-                
+                from image_sender import ImageSender
                 try:
                     image_file = None
                     
                     if image_data:
                         # 处理上传的Base64图片
-                        content_type = image_data.split(';')[0].split(':')[1]
-                        ext = content_type.split('/')[1]  # 获取文件格式 (如 jpeg, png)
-                        file_name = f"image_{int(time.time())}.{ext}"  # 生成文件名
-                        
-                        image_bytes = base64.b64decode(image_data.split(',')[1])
-                        image_file = BytesIO(image_bytes)
-                        image_file.name = file_name  # 设置文件名
-                        
-                        logger.info(f"Sending uploaded image with filename: {file_name}, content-type: {content_type}")
+                        logger.info("Processing Base64 image data")
+                        image_file = await ImageSender.prepare_image_from_base64(image_data)
+                        logger.info(f"Prepared image from Base64 data with name: {image_file.name}")
                     
                     elif image_url:
+                        # 处理图片 URL
+                        import re
+                        
                         # 处理 Markdown 格式的图片 URL
                         # 匹配 markdown 格式: ![alt text](https://example.com/image.jpg)
                         markdown_match = re.match(r'!\[(.*?)\]\((.*?)\)', image_url)
@@ -110,53 +102,31 @@ class TelegramAPI:
                             image_url = markdown_match.group(2)
                             logger.info(f"Extracted URL from Markdown format: {image_url}")
                         
-                        # 提取文件扩展名
-                        ext = image_url.split('.')[-1].lower()
-                        if '?' in ext:  # 处理URL中可能的查询参数
-                            ext = ext.split('?')[0]
-                        
-                        # 如果扩展名不是常见图片格式，默认使用jpg
-                        if ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
-                            ext = 'jpg'
-                            
-                        file_name = f"image_{int(time.time())}.{ext}"
-                        
-                        # 下载图片
-                        async with aiohttp.ClientSession() as session:
-                            logger.info(f"Downloading image from URL: {image_url}")
-                            async with session.get(image_url) as response:
-                                if response.status == 200:
-                                    image_bytes = await response.read()
-                                    image_file = BytesIO(image_bytes)
-                                    image_file.name = file_name
-                                    logger.info(f"Successfully downloaded image, size: {len(image_bytes)} bytes")
-                                else:
-                                    logger.error(f"Failed to download image, status code: {response.status}")
-                                    return {"error": f"Failed to download image from URL, status code: {response.status}"}
+                        logger.info(f"Processing image URL: {image_url}")
+                        image_file = await ImageSender.prepare_image_from_url(image_url)
+                        logger.info(f"Prepared image from URL with name: {image_file.name}")
                     
                     # 发送图片和文本
-                    message_id = await self.core.send_message(
+                    logger.info(f"Sending message with image to channel: {channel}, topic: {topic_id}")
+                    result = await self.core.send_message(
                         message=message,
-                        channel=channel,
+                        channel_name=channel,
                         topic_id=topic_id,
-                        image_file=image_file
+                        image_path=image_file
                     )
+                    return result
                 except Exception as e:
                     logger.error(f"Error processing image: {str(e)}")
                     return {"error": f"Error processing image: {str(e)}"}
             else:
                 # 发送纯文本消息
-                message_id = await self.core.send_message(
+                logger.info(f"Sending text message to channel: {channel}, topic: {topic_id}")
+                result = await self.core.send_message(
                     message=message,
-                    channel=channel,
+                    channel_name=channel,
                     topic_id=topic_id
                 )
-            
-            return {
-                "status": "success",
-                "message": "Message sent successfully",
-                "message_id": message_id
-            }
+                return result
             
         except Exception as e:
             logger.error(f"Error sending message: {str(e)}")

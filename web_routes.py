@@ -27,7 +27,7 @@ telegram_api = None
 twitter_api = None
 
 # Version
-VERSION = "0.23.18"
+VERSION = "0.23.44"
 
 def set_main_loop(loop):
     """Set the main event loop"""

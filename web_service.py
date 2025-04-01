@@ -16,7 +16,14 @@ class WebService:
         self.app = Flask(__name__)
         self.app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
         self.app.config['JSON_AS_ASCII'] = False
-        self.port = int(os.getenv('PORT', 5000))
+        # 根据环境变量MODE选择不同的端口
+        mode = os.getenv('MODE', 'dev')
+        if mode.lower() == 'dev':
+            self.port = int(os.getenv('DEV_PORT', 8873))
+            logger.info(f"Running in DEV mode on port {self.port}")
+        else:
+            self.port = int(os.getenv('PRD_PORT', 8872))
+            logger.info(f"Running in PRODUCTION mode on port {self.port}")
         
         # 设置主事件循环
         self.loop = asyncio.get_event_loop()

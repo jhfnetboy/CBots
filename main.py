@@ -40,38 +40,39 @@ class BotService:
         self.last_message_time = None
         
     async def start(self):
-        """启动服务"""
+        """Start the application"""
         try:
-            # 启动 Telegram 服务
-            logger.info("Starting Telegram core service...")
+            # 启动 Telegram 核心服务
             if not await self.telegram_core.start():
-                logger.error("Failed to start Telegram service")
+                print("Failed to start Telegram core service")
                 return False
-            logger.info(f"Telegram core service status - is_running: {self.telegram_core.is_running}")
                 
-            # 启动 Twitter 服务
-            try:
-                if not await self.twitter_core.start():
-                    logger.warning("Failed to start Twitter service, continuing without Twitter functionality")
-            except Exception as e:
-                logger.warning(f"Twitter service failed to start: {e}, continuing without Twitter functionality")
+            # 启动 Twitter 核心服务 (可选)
+            # if self.twitter_core:
+            #     if not await self.twitter_core.start():
+            #         print("Failed to start Twitter core service")
+            #         # Twitter 服务失败不影响整体运行
+            #         print("Continuing without Twitter service")
             
-            # 启动 Telegram API 服务
-            logger.info("Starting Telegram API service...")
+            # 启动 API 服务
             if not await self.telegram_api.start():
-                logger.error("Failed to start Telegram API service")
+                print("Failed to start Telegram API service")
                 return False
-            logger.info(f"Telegram API service status - is_running: {self.telegram_api.is_running}")
+                
+            # if self.twitter_api:
+            #     if not await self.twitter_api.start():
+            #         print("Failed to start Twitter API service")
+            #         # Twitter API 服务失败不影响整体运行
+            #         print("Continuing without Twitter API service")
             
-            # 暂时注释掉上线消息
-            # await self.message_handlers.send_online_message()
-            
+            # 更新状态
             self.is_running = True
-            logger.info("Bot service started successfully")
+            print("Application started successfully")
             return True
-            
         except Exception as e:
-            logger.error(f"Error starting bot service: {e}", exc_info=True)
+            print(f"Error starting application: {e}")
+            import traceback
+            print(traceback.format_exc())
             return False
             
     async def stop(self):
