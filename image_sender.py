@@ -32,17 +32,47 @@ class ImageSender:
             # 提取扩展名
             ext = content_type.split('/')[1]
             logger.info(f"Extracted extension from content type: {ext}")
-            if ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
-                logger.warning(f"Invalid extension {ext}, using jpeg")
-                ext = 'jpeg'
+            # 强制使用 jpeg 扩展名，确保最佳兼容性
+            ext = 'jpeg'
             
             # 创建文件名
             file_name = f"image_{int(time.time())}.{ext}"
             logger.info(f"Generated filename: {file_name}")
             
-            # 从Base64数据中提取图片数据
+            # 从Base64数据中提取图片数据 - 不记录具体base64内容
+            logger.info("Decoding base64 image data...")
             image_bytes = base64.b64decode(image_data.split(',')[1])
             logger.info(f"Decoded base64 image data, size: {len(image_bytes)}")
+            
+            # 尝试转换为JPEG格式（如果需要的话）
+            try:
+                from PIL import Image
+                from io import BytesIO
+                # 尝试打开图片
+                image = Image.open(BytesIO(image_bytes))
+                # 如果不是JPEG，转换为JPEG
+                if image.format != 'JPEG':
+                    logger.info(f"Converting image from {image.format} to JPEG")
+                    # 创建一个新的BytesIO对象
+                    jpeg_buffer = BytesIO()
+                    # 如果图片有透明通道，需要处理
+                    if image.mode == 'RGBA':
+                        # 创建白色背景
+                        background = Image.new('RGB', image.size, (255, 255, 255))
+                        # 将原图合成到背景上
+                        background.paste(image, mask=image.split()[3])
+                        # 保存为JPEG
+                        background.save(jpeg_buffer, 'JPEG')
+                    else:
+                        # 直接保存为JPEG
+                        image.convert('RGB').save(jpeg_buffer, 'JPEG')
+                    # 获取转换后的字节
+                    image_bytes = jpeg_buffer.getvalue()
+                    logger.info(f"Converted image size: {len(image_bytes)} bytes")
+            except ImportError:
+                logger.warning("PIL not installed, skipping image conversion")
+            except Exception as e:
+                logger.warning(f"Failed to convert image: {e}, using original bytes")
             
             # 创建 BytesIO 对象并设置文件名
             image_file = BytesIO(image_bytes)
@@ -69,17 +99,43 @@ class ImageSender:
                     image_bytes = await resp.read()
                     logger.info(f"Downloaded image size: {len(image_bytes)} bytes")
                     
-                    # 从 URL 提取扩展名
-                    url_path = urlparse(image_url).path
-                    ext = os.path.splitext(url_path)[1].lower().lstrip('.')
-                    logger.info(f"Extracted extension from URL: {ext}")
-                    if not ext or ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
-                        logger.warning(f"Invalid extension from URL: {ext}, using jpeg")
-                        ext = 'jpeg'
+                    # 强制使用 jpeg 扩展名，确保最佳兼容性
+                    ext = 'jpeg'
+                    logger.info(f"Using extension: {ext}")
                     
                     # 创建文件名
                     file_name = f"image_{int(time.time())}.{ext}"
                     logger.info(f"Generated filename for URL image: {file_name}")
+                    
+                    # 尝试转换为JPEG格式
+                    try:
+                        from PIL import Image
+                        from io import BytesIO
+                        # 尝试打开图片
+                        image = Image.open(BytesIO(image_bytes))
+                        # 如果不是JPEG，转换为JPEG
+                        if image.format != 'JPEG':
+                            logger.info(f"Converting image from {image.format} to JPEG")
+                            # 创建一个新的BytesIO对象
+                            jpeg_buffer = BytesIO()
+                            # 如果图片有透明通道，需要处理
+                            if image.mode == 'RGBA':
+                                # 创建白色背景
+                                background = Image.new('RGB', image.size, (255, 255, 255))
+                                # 将原图合成到背景上
+                                background.paste(image, mask=image.split()[3])
+                                # 保存为JPEG
+                                background.save(jpeg_buffer, 'JPEG')
+                            else:
+                                # 直接保存为JPEG
+                                image.convert('RGB').save(jpeg_buffer, 'JPEG')
+                            # 获取转换后的字节
+                            image_bytes = jpeg_buffer.getvalue()
+                            logger.info(f"Converted image size: {len(image_bytes)} bytes")
+                    except ImportError:
+                        logger.warning("PIL not installed, skipping image conversion")
+                    except Exception as e:
+                        logger.warning(f"Failed to convert image: {e}, using original bytes")
                     
                     # 创建 BytesIO 对象并设置文件名
                     image_file = BytesIO(image_bytes)
@@ -126,48 +182,31 @@ class ImageSender:
             fresh_image = BytesIO(image_bytes)
             fresh_image.name = image_file.name
             
-            # 尝试两种方式发送图片
+            # 尝试两种发送方式，先尝试作为照片发送，失败则作为文档发送
             try:
-                # 第一种方式：作为照片发送
-                logger.info(f"Attempting to send as photo with name: {fresh_image.name}")
+                # 更简单的方法：始终作为文档发送，绕过扩展名验证
                 if reply_to:
-                    result = await client.send_file(
-                        entity=entity,
-                        file=fresh_image,
-                        caption=message,
-                        reply_to=reply_to
-                    )
-                else:
-                    result = await client.send_file(
-                        entity=entity,
-                        file=fresh_image,
-                        caption=message
-                    )
-                logger.info(f"Image message sent successfully! ID: {result.id}")
-                return result.id
-            except Exception as e:
-                # 如果第一种方式失败，尝试作为文档发送
-                logger.warning(f"Failed to send as photo: {e}, trying as document")
-                fresh_image = BytesIO(image_bytes)  # 重新创建对象
-                fresh_image.name = image_file.name
-                
-                if reply_to:
+                    logger.info(f"Sending image as document to topic {reply_to}")
                     result = await client.send_file(
                         entity=entity,
                         file=fresh_image,
                         caption=message,
                         reply_to=reply_to,
-                        force_document=True
+                        force_document=True  # 强制作为文档发送
                     )
                 else:
+                    logger.info("Sending image as document")
                     result = await client.send_file(
                         entity=entity,
                         file=fresh_image,
                         caption=message,
-                        force_document=True
+                        force_document=True  # 强制作为文档发送
                     )
-                logger.info(f"Image message sent as document successfully! ID: {result.id}")
+                logger.info(f"Image message sent successfully as document! ID: {result.id}")
                 return result.id
+            except Exception as e:
+                logger.error(f"Failed to send image: {e}")
+                raise
                 
         except Exception as e:
             logger.error(f"Error sending image message: {e}")

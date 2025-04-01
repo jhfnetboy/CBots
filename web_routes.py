@@ -30,7 +30,7 @@ twitter_api = None
 recent_messages = {}
 
 # Version
-VERSION = "0.23.51"
+VERSION = "0.23.53"
 
 def set_main_loop(loop):
     """Set the main event loop"""
