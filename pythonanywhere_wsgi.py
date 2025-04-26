@@ -6,6 +6,7 @@ import sys
 import os
 import logging
 import traceback
+import asyncio
 
 # 配置日志
 logging.basicConfig(
@@ -29,6 +30,25 @@ if os.path.exists(virtualenv_path + '/bin/activate_this.py'):
     logger.info(f"虚拟环境激活成功: {virtualenv_path}")
 else:
     logger.warning(f"虚拟环境激活文件未找到: {virtualenv_path}/bin/activate_this.py")
+
+# 创建并设置事件循环
+try:
+    logger.info("正在创建和设置事件循环...")
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    logger.info("事件循环创建成功")
+    
+    # 导入并设置主事件循环
+    try:
+        from web_routes import set_main_loop
+        set_main_loop(loop)
+        logger.info("主事件循环设置成功")
+    except Exception as e:
+        logger.error(f"设置主事件循环失败: {e}")
+        logger.error(traceback.format_exc())
+except Exception as e:
+    logger.error(f"创建事件循环失败: {e}")
+    logger.error(traceback.format_exc())
 
 # 导入Flask应用
 try:

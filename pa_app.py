@@ -25,6 +25,21 @@ try:
 except Exception as e:
     logger.error(f"环境变量加载失败: {e}")
 
+# 设置事件循环
+try:
+    # 创建新的事件循环
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    # 设置主事件循环
+    from web_routes import set_main_loop
+    set_main_loop(loop) 
+    logger.info("主事件循环已设置")
+except Exception as e:
+    logger.error(f"设置事件循环失败: {e}")
+    logger.error(traceback.format_exc())
+
 # 创建Flask应用
 app = Flask(__name__, 
           static_folder='static',
@@ -123,13 +138,29 @@ def send_message_api():
                     app_status["last_error"] = str(e)
                     return {"success": False, "error": str(e)}
             
-            # 在PythonAnywhere环境中，必须手动创建事件循环
+            # 获取当前事件循环
             try:
                 loop = asyncio.get_event_loop()
+                logger.info(f"获取到现有事件循环: {loop}")
             except RuntimeError:
+                logger.warning("未找到现有事件循环，创建新的事件循环")
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
+                # 重新设置主事件循环
+                try:
+                    from web_routes import set_main_loop
+                    set_main_loop(loop)
+                    logger.info("重新设置主事件循环")
+                except Exception as e:
+                    logger.error(f"重新设置主事件循环失败: {e}")
+                
+            # 添加调试信息
+            logger.info(f"当前事件循环: {loop}")
+            logger.info(f"事件循环状态: {'运行中' if loop.is_running() else '未运行'}")
+            logger.info(f"事件循环已关闭: {'是' if loop.is_closed() else '否'}")
+                
+            # 运行异步任务
             result = loop.run_until_complete(process_message())
             
             return jsonify(result)

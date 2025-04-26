@@ -36,6 +36,8 @@ def set_main_loop(loop):
     """Set the main event loop"""
     global main_loop
     main_loop = loop
+    logger.info(f"主事件循环已设置: {loop}")
+    logger.info(f"主事件循环ID: {id(loop)}")
     print("\033[92m" + f"Bot Version: {VERSION}" + "\033[0m")  # 绿色显示版本号
 
 def init_web_routes(app, telegram_client):
@@ -72,6 +74,23 @@ def telegram():
 def send_message():
     """Send message endpoint"""
     try:
+        # 检查主事件循环是否初始化
+        global main_loop
+        logger.info(f"主事件循环状态: {'已初始化' if main_loop else '未初始化'}")
+        if main_loop:
+            logger.info(f"主事件循环ID: {id(main_loop)}")
+        else:
+            logger.error("主事件循环未初始化")
+            # 尝试创建一个新的事件循环
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                set_main_loop(loop)
+                logger.info("已临时创建并设置新的主事件循环")
+            except Exception as e:
+                logger.error(f"创建临时事件循环失败: {e}")
+                return jsonify({'error': 'Server not ready - event loop creation failed'}), 500
+
         data = request.get_json()
         logger.info(f"Raw request data: {data}")
         
@@ -197,6 +216,21 @@ def send_message():
                 return {'error': str(e)}
         
         logger.info("Creating asyncio task with run_coroutine_threadsafe")
+        logger.info(f"当前主事件循环: {main_loop}")
+        logger.info(f"事件循环状态: {'运行中' if main_loop.is_running() else '未运行'}")
+        logger.info(f"事件循环已关闭: {'是' if main_loop.is_closed() else '否'}")
+        
+        # 如果事件循环已关闭，尝试创建新的
+        if main_loop.is_closed():
+            logger.error("主事件循环已关闭，尝试创建新的...")
+            try:
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                set_main_loop(new_loop)
+                logger.info("已创建并设置新的主事件循环")
+            except Exception as e:
+                logger.error(f"创建新事件循环失败: {e}")
+                return jsonify({'error': 'Server not ready - event loop closed'}), 500
                 
         # 使用 run_coroutine_threadsafe 在主事件循环中执行异步操作
         future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
