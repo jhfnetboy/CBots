@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 版本信息
-VERSION = "0.24.60"
+VERSION = "0.24.61"
 
 # 全局事件循环线程
 event_loop_thread = None
@@ -31,6 +31,15 @@ app = Flask(__name__,
 # 配置应用
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
 app.config['JSON_AS_ASCII'] = False
+
+# 根据环境变量配置端口
+MODE = os.getenv('MODE', 'prod').lower()
+if MODE == 'dev':
+    PORT = int(os.getenv('DEV_PORT', '8873'))
+    logger.info(f"运行在开发模式，使用端口: {PORT}")
+else:
+    PORT = int(os.getenv('PRD_PORT', '8872'))
+    logger.info(f"运行在生产模式，使用端口: {PORT}")
 
 # 注册蓝图
 try:
@@ -198,8 +207,8 @@ if __name__ == '__main__':
         time.sleep(1)
         
         # 启动Flask应用
-        logger.info("启动Web服务...")
-        app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+        logger.info(f"启动Web服务在端口: {PORT}...")
+        app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
     
     except KeyboardInterrupt:
         logger.info("接收到中断信号，正在关闭...")
