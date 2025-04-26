@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, current_app
 import logging
 import asyncio
 from datetime import datetime
@@ -11,6 +11,10 @@ from twitter_core import TwitterCore
 from telegram_api import TelegramAPI
 from twitter_api import TwitterAPI
 import hashlib
+import time
+import traceback
+from concurrent.futures import TimeoutError
+from functools import wraps
 
 # Configure logging
 logging.basicConfig(
@@ -23,8 +27,8 @@ logger = logging.getLogger(__name__)
 web_bp = Blueprint('web', __name__)
 
 # Store the main event loop
-main_loop = None
-telegram_api = None
+_main_loop = None
+_telegram_api = None
 twitter_api = None
 # 存储最近发送消息的记录，用于防止重复发送
 recent_messages = {}
@@ -34,15 +38,53 @@ VERSION = "0.23.53"
 
 def set_main_loop(loop):
     """Set the main event loop"""
-    global main_loop
-    main_loop = loop
-    logger.info(f"主事件循环已设置: {loop}")
+    global _main_loop
+    _main_loop = loop
+    logger.info(f"主事件循环已设置: {loop}, 运行状态: {'运行中' if loop.is_running() else '未运行'}")
     logger.info(f"主事件循环ID: {id(loop)}")
     print("\033[92m" + f"Bot Version: {VERSION}" + "\033[0m")  # 绿色显示版本号
+    logger.info(f"当前主事件循环: {_main_loop}")
+    logger.info(f"事件循环状态: {'运行中' if loop.is_running() else '未运行'}")
+    logger.info(f"事件循环已关闭: {'是' if loop.is_closed() else '否'}")
+
+def get_or_create_loop():
+    """获取当前事件循环或创建新的事件循环"""
+    global _main_loop
+    
+    # 检查是否已有设置的主循环
+    if _main_loop is not None and not _main_loop.is_closed():
+        return _main_loop
+    
+    # 尝试获取当前线程的事件循环
+    try:
+        loop = asyncio.get_event_loop()
+        if not loop.is_closed():
+            return loop
+    except RuntimeError:
+        # 当前线程没有事件循环
+        pass
+    
+    # 创建新的事件循环
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    set_main_loop(loop)
+    return loop
+
+def get_telegram_api():
+    """获取或创建TelegramAPI实例"""
+    global _telegram_api
+    
+    if _telegram_api is None:
+        # 延迟导入，避免循环依赖
+        from telegram_api import TelegramAPI
+        _telegram_api = TelegramAPI()
+        logger.info("初始化了新的TelegramAPI实例")
+    
+    return _telegram_api
 
 def init_web_routes(app, telegram_client):
     """Initialize web routes with the Flask app and Telegram client"""
-    global telegram_api, twitter_api
+    global twitter_api
     
     # 初始化 API 实例
     telegram_core = TelegramCore()
@@ -75,10 +117,10 @@ def send_message():
     """Send message endpoint"""
     try:
         # 检查主事件循环是否初始化
-        global main_loop
-        logger.info(f"主事件循环状态: {'已初始化' if main_loop else '未初始化'}")
-        if main_loop:
-            logger.info(f"主事件循环ID: {id(main_loop)}")
+        global _main_loop
+        logger.info(f"主事件循环状态: {'已初始化' if _main_loop else '未初始化'}")
+        if _main_loop:
+            logger.info(f"主事件循环ID: {id(_main_loop)}")
         else:
             logger.error("主事件循环未初始化")
             # 尝试创建一个新的事件循环
@@ -136,7 +178,7 @@ def send_message():
             return jsonify({'error': 'Invalid channel format. Use format: CommunityName/TopicID'}), 400
             
         # 使用主事件循环
-        if not main_loop:
+        if not _main_loop:
             logger.error("Main event loop not initialized")
             return jsonify({'error': 'Server not ready'}), 500
         
@@ -216,12 +258,12 @@ def send_message():
                 return {'error': str(e)}
         
         logger.info("Creating asyncio task with run_coroutine_threadsafe")
-        logger.info(f"当前主事件循环: {main_loop}")
-        logger.info(f"事件循环状态: {'运行中' if main_loop.is_running() else '未运行'}")
-        logger.info(f"事件循环已关闭: {'是' if main_loop.is_closed() else '否'}")
+        logger.info(f"当前主事件循环: {_main_loop}")
+        logger.info(f"事件循环状态: {'运行中' if _main_loop.is_running() else '未运行'}")
+        logger.info(f"事件循环已关闭: {'是' if _main_loop.is_closed() else '否'}")
         
         # 如果事件循环已关闭，尝试创建新的
-        if main_loop.is_closed():
+        if _main_loop.is_closed():
             logger.error("主事件循环已关闭，尝试创建新的...")
             try:
                 new_loop = asyncio.new_event_loop()
@@ -233,7 +275,7 @@ def send_message():
                 return jsonify({'error': 'Server not ready - event loop closed'}), 500
                 
         # 使用 run_coroutine_threadsafe 在主事件循环中执行异步操作
-        future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
+        future = asyncio.run_coroutine_threadsafe(send_async(), _main_loop)
         try:
             logger.info("Waiting for future result with timeout")
             result = future.result(timeout=30)  # 设置30秒超时
@@ -298,7 +340,7 @@ def send_tweet():
             del recent_messages[key]
             
         # 使用主事件循环
-        if not main_loop:
+        if not _main_loop:
             logger.error("Main event loop not initialized")
             return jsonify({'error': 'Server not ready'}), 500
             
@@ -358,7 +400,7 @@ def send_tweet():
                 return {'error': str(e)}
                 
         # 使用 run_coroutine_threadsafe 在主事件循环中执行异步操作
-        future = asyncio.run_coroutine_threadsafe(send_async(), main_loop)
+        future = asyncio.run_coroutine_threadsafe(send_async(), _main_loop)
         try:
             result = future.result(timeout=30)  # 设置30秒超时
             if isinstance(result, tuple) and len(result) == 2:
@@ -378,4 +420,167 @@ def send_tweet():
         logger.error(f"Error in send_tweet: {str(e)}")
         logger.error(f"Error type: {type(e)}")
         logger.error(f"Error details: {str(e)}")
-        return jsonify({'error': str(e)}), 500 
+        return jsonify({'error': str(e)}), 500
+
+async def run_with_timeout(coro, timeout=30):
+    """在指定超时时间内运行协程"""
+    try:
+        start_time = time.time()
+        result = await asyncio.wait_for(coro, timeout=timeout)
+        elapsed_time = time.time() - start_time
+        logger.info(f"协程执行完成，耗时: {elapsed_time:.2f}秒")
+        return result
+    except asyncio.TimeoutError:
+        logger.error(f"协程执行超时 (>{timeout}秒)")
+        raise TimeoutError(f"操作超时 (>{timeout}秒)")
+    except Exception as e:
+        logger.error(f"协程执行出错: {e}")
+        logger.error(traceback.format_exc())
+        raise
+
+@web_bp.route('/api/telegram/send', methods=['POST'])
+def send_telegram_message():
+    """发送Telegram消息的API端点"""
+    try:
+        # 获取请求数据
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "未提供数据"}), 400
+        
+        # 提取消息内容
+        message = data.get('message')
+        chat_id = data.get('chat_id')
+        
+        # 验证必填字段
+        if not message:
+            return jsonify({"success": False, "error": "消息内容不能为空"}), 400
+        
+        logger.info(f"准备发送Telegram消息: {message[:100]}... 到 {chat_id or '默认聊天'}")
+        
+        # 获取当前事件循环
+        loop = get_or_create_loop()
+        
+        # 初始化Telegram API
+        telegram_api = get_telegram_api()
+        
+        # 创建发送消息的异步函数
+        async def send_message_task():
+            try:
+                # 连接到Telegram
+                await telegram_api.connect()
+                
+                # 发送消息
+                result = await telegram_api.send_message(
+                    message=message,
+                    chat_id=chat_id
+                )
+                
+                # 断开连接
+                await telegram_api.disconnect()
+                
+                return result
+            except Exception as e:
+                logger.error(f"发送Telegram消息失败: {e}")
+                logger.error(traceback.format_exc())
+                return {"success": False, "error": str(e)}
+        
+        # 执行异步任务的方式取决于事件循环的状态
+        if loop.is_running():
+            # 如果循环正在运行，使用run_coroutine_threadsafe
+            logger.info("事件循环正在运行，使用run_coroutine_threadsafe")
+            future = asyncio.run_coroutine_threadsafe(send_message_task(), loop)
+            try:
+                result = future.result(timeout=30)  # 30秒超时
+                return jsonify(result)
+            except Exception as e:
+                logger.error(f"发送消息操作失败: {e}")
+                return jsonify({"success": False, "error": str(e)})
+        else:
+            # 如果循环没有运行，使用run_until_complete
+            logger.info("事件循环未运行，使用run_until_complete")
+            try:
+                # 添加超时控制
+                result = loop.run_until_complete(run_with_timeout(send_message_task()))
+                return jsonify(result)
+            except Exception as e:
+                logger.error(f"发送消息操作失败: {e}")
+                logger.error(traceback.format_exc())
+                return jsonify({"success": False, "error": str(e)})
+    
+    except Exception as e:
+        logger.error(f"处理Telegram消息请求失败: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)})
+
+@web_bp.route('/api/telegram/status', methods=['GET'])
+def get_status():
+    """获取Telegram服务状态"""
+    try:
+        # 获取或创建事件循环
+        loop = get_or_create_loop()
+        
+        # 获取API实例
+        api = get_telegram_api()
+        
+        # 异步获取状态
+        async def get_status_task():
+            try:
+                # 如果没连接，先尝试连接
+                if not api.connected:
+                    await api.connect()
+                
+                # 获取状态
+                return await api.get_status()
+            except Exception as e:
+                logger.error(f"获取状态时出错: {e}")
+                return {"error": str(e)}
+        
+        # 执行任务
+        if loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(get_status_task(), loop)
+            status = future.result(timeout=10)  # 10秒超时
+        else:
+            status = loop.run_until_complete(asyncio.wait_for(get_status_task(), timeout=10))
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        logger.error(f"获取状态时出错: {e}")
+        return jsonify({"error": str(e)})
+
+@web_bp.route('/api/loop_status')
+def loop_status():
+    """获取事件循环状态的API端点"""
+    loop = get_or_create_loop()
+    
+    return jsonify({
+        "is_running": loop.is_running(),
+        "is_closed": loop.is_closed(),
+        "has_main_loop": _main_loop is not None,
+        "has_telegram_api": _telegram_api is not None
+    }) 
+
+@web_bp.route('/api/loop_status', methods=['GET'])
+def get_loop_status():
+    """获取事件循环状态"""
+    try:
+        loop = get_or_create_loop()
+        
+        # 获取循环的详细状态
+        status = {
+            "loop_exists": loop is not None,
+            "is_running": loop.is_running() if loop else False,
+            "is_closed": loop.is_closed() if loop else True,
+            "time": datetime.now().isoformat(),
+        }
+        
+        return jsonify({
+            "success": True,
+            "status": status
+        })
+    except Exception as e:
+        logger.error(f"获取事件循环状态失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }) 
