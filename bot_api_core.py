@@ -25,6 +25,12 @@ class BotAPICore:
         # Update version for bilingual and unmute fix attempt
         self.version = "0.8.9" 
         self.token = token
+        
+        # Determine environment tag
+        if os.getenv('PYTHONANYWHERE_DOMAIN'):
+            self.environment_tag = "[PythonAnywhere]"
+        else:
+            self.environment_tag = "[LocalHost]"
 
         # Initialize Application using ApplicationBuilder (PTB v20+)
         application_builder = Application.builder().token(self.token)
@@ -36,14 +42,14 @@ class BotAPICore:
         self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, self.new_member_handler))
         self.application.add_handler(MessageHandler(filters.ChatType.PRIVATE & (~filters.COMMAND), self.private_message_handler))
         
-        logger.info(f"BotAPICore {self.version} initialized with handlers using ApplicationBuilder.")
+        logger.info(f"BotAPICore {self.version} initialized ({self.environment_tag}) with handlers using ApplicationBuilder.")
         logger.info(f"Daily password generated: {self.daily_password}")
         logger.info(f"Target group for unmute: {self.target_group}")
 
     # --- Polling and Idle Methods (for local execution via main.py) ---
     def run_polling(self):
         """Starts the bot in polling mode and blocks until interrupted."""
-        logger.info("Starting bot in polling mode...")
+        logger.info(f"Starting bot in polling mode ({self.environment_tag})...")
         self.application.run_polling(allowed_updates=Update.ALL_TYPES)
         logger.info("Bot polling stopped.")
 
@@ -57,23 +63,24 @@ class BotAPICore:
     # --- Command Handlers ---
     # Make command handlers async
     async def pass_command(self, update: Update, context: CallbackContext):
-        """Handle /pass command, send daily password (Bilingual)"""
+        """Handle /pass command, send daily password (Bilingual + Env Tag)"""
         text = (
             f"今日密码是 (Today's password is): {self.daily_password}\n"
-            f"请私聊此密码以解除禁言。(Please DM this password to the bot to unmute.)"
+            f"请私聊此密码以解除禁言。(Please DM this password to the bot to unmute.)\n"
+            f"服务来源 (Service Source): {self.environment_tag}"
         )
         try:
             await update.message.reply_text(text)
-            logger.info(f"Sent daily password to {update.effective_user.first_name}")
+            logger.info(f"Sent daily password ({self.environment_tag}) to {update.effective_user.first_name}")
         except Exception as e:
             logger.error(f"Error replying to /pass command: {e}")
 
     async def version_command(self, update: Update, context: CallbackContext):
-        """Handle /version command, send bot version (Bilingual)"""
-        text = f"当前版本 (Current version): {self.version}"
+        """Handle /version command, send bot version (Bilingual + Env Tag)"""
+        text = f"当前版本 (Current version): {self.version} {self.environment_tag}"
         try:
             await update.message.reply_text(text)
-            logger.info(f"Sent version info to {update.effective_user.first_name}")
+            logger.info(f"Sent version info ({self.environment_tag}) to {update.effective_user.first_name}")
         except Exception as e:
             logger.error(f"Error replying to /version command: {e}")
 
@@ -91,7 +98,7 @@ class BotAPICore:
                     permissions=permissions
                 )
                 # Removed welcome message sending
-                logger.info(f"Muted new member {member.first_name} (ID: {member.id}) in chat {chat_id}. Welcome message removed.")
+                logger.info(f"Muted new member {member.first_name} ({self.environment_tag}) in chat {chat_id}. Welcome message removed.")
             except Exception as e:
                 # Log error with traceback
                 logger.error(f"Error muting new member {member.id} in chat {chat_id}: {e}\n{traceback.format_exc()}")
@@ -100,10 +107,10 @@ class BotAPICore:
         """Handle private messages for password validation (Bilingual, detailed error log)"""
         text = update.message.text or ''
         user = update.effective_user
-        logger.info(f"Received private message from {user.first_name} (ID: {user.id}): '{text[:20]}...'")
+        logger.info(f"Received private message ({self.environment_tag}) from {user.first_name} (ID: {user.id}): '{text[:20]}...'")
         
         if text == self.daily_password:
-            logger.info(f"Correct password received from {user.first_name}. Attempting to unmute in target group: {self.target_group}")
+            logger.info(f"Correct password received ({self.environment_tag}) from {user.first_name}. Attempting to unmute in target group: {self.target_group}")
             if not self.target_group:
                  reply_text = "错误：管理员未配置目标群组，无法解禁。(Error: Target group not configured by admin, cannot unmute.)"
                  await update.message.reply_text(reply_text)
@@ -152,27 +159,28 @@ class BotAPICore:
                 if success:
                     reply_text = "密码正确，已在目标群组解除禁言。(Password correct, you have been unmuted in the target group.)"
                     await update.message.reply_text(reply_text)
-                    logger.info(f"Successfully unmuted user {user.id} in target group {self.target_group}. API returned success.")
+                    logger.info(f"Successfully unmuted user ({self.environment_tag}) {user.id} in target group {self.target_group}. API returned success.")
                 else:
                     reply_text = "在目标群组解禁失败（API未返回成功）。请联系管理员。(Failed to unmute in target group (API did not return success). Please contact admin.)"
                     await update.message.reply_text(reply_text)
-                    logger.warning(f"Failed to unmute user {user.id} in group {self.target_group}. API returned non-success.")
+                    logger.warning(f"Failed to unmute user ({self.environment_tag}) {user.id} in group {self.target_group}. API returned non-success.")
 
             except Exception as e:
                 reply_text = "在目标群组解禁失败。请联系管理员。(Failed to unmute in target group. Please contact admin.)"
                 await update.message.reply_text(reply_text)
-                logger.error(f"Error unmuting user {user.id} in group {self.target_group}: {e}\n{traceback.format_exc()}")
+                logger.error(f"Error unmuting user ({self.environment_tag}) {user.id} in group {self.target_group}: {e}\n{traceback.format_exc()}")
         else:
             reply_text = (
                 "密码错误或非密码消息。请发送今日密码以解除禁言。\n"
                 "(Incorrect password or not a password message. Please send today's password to get unmuted.)"
             )
             await update.message.reply_text(reply_text)
-            logger.info(f"Incorrect password or non-password message received from {user.first_name}.")
+            logger.info(f"Incorrect password ({self.environment_tag}) received from {user.first_name}.")
 
     # --- Webhook Integration Method (for web_service.py) ---
     async def process_update(self, update_data: dict):
         """Process a single update received via webhook."""
+        logger.debug(f"Processing webhook update ({self.environment_tag})...")
         async with self.application:
             update = Update.de_json(update_data, self.application.bot)
             await self.application.process_update(update)
