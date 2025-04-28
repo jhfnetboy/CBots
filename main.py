@@ -50,12 +50,16 @@ def signal_handler(sig, frame):
     global running
     logger.info("Shutdown signal received. Stopping bot...")
     running = False
-    if bot_instance and hasattr(bot_instance, 'updater'):
+    # Application.run_polling handles shutdown, but we might add explicit stop if needed
+    if bot_instance and hasattr(bot_instance, 'stop_polling'):
         try:
-            bot_instance.updater.stop() # Stop polling gracefully
-            logger.info("Bot polling stopped.")
+            # In PTB v20+, shutdown is typically handled by the application
+            # itself when run_polling receives the signal.
+            # If manual stop is needed: asyncio.create_task(bot_instance.application.shutdown())
+            # For now, rely on run_polling's signal handling.
+            logger.info("Polling should stop automatically via run_polling signal handler.")
         except Exception as e:
-            logger.error(f"Error stopping bot updater: {e}")
+            logger.error(f"Error explicitly stopping bot: {e}")
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler) # Handle Ctrl+C
@@ -78,9 +82,10 @@ def main():
         try:
             bot_instance = BotAPICore()
             logger.info(f"Starting polling for Bot version {bot_instance.version}...")
-            bot_instance.updater.start_polling()
-            logger.info("Bot is now polling for updates.")
-            bot_instance.updater.idle() # Keep the script running until interrupted
+            # Use the new run_polling method
+            bot_instance.run_polling()
+            # run_polling is blocking, so code below won't be reached until stop
+            logger.info("Bot polling finished.") 
         except ValueError as e:
              logger.error(f"Configuration error: {e}")
         except Exception as e:

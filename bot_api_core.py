@@ -3,7 +3,9 @@ import logging
 import random
 import string
 from telegram import Update, ChatPermissions
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+# Use ApplicationBuilder for initialization in PTB v20+
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackContext, filters
+import traceback # Import traceback for detailed error logging
 
 logger = logging.getLogger(__name__)
 
@@ -20,89 +22,158 @@ class BotAPICore:
             raise ValueError("Missing TELEGRAM_BOT_TOKEN environment variable")
         self.target_group = os.getenv('TELEGRAM_GROUP')
         self.daily_password = generate_daily_password()
-        self.version = "0.8.7" # Update version for Bot API migration
+        # Update version for bilingual and unmute fix attempt
+        self.version = "0.8.9" 
         self.token = token
 
-        # Initialize Updater and dispatcher
-        # Note: We don't start polling or webhook here.
-        # That will be handled by the entry point (main.py or web_service.py via WSGI).
-        self.updater = Updater(token=self.token, use_context=True)
-        dp = self.updater.dispatcher
+        # Initialize Application using ApplicationBuilder (PTB v20+)
+        application_builder = Application.builder().token(self.token)
+        self.application = application_builder.build()
 
-        # Register command handlers
-        dp.add_handler(CommandHandler('pass', self.pass_command))
-        dp.add_handler(CommandHandler('version', self.version_command))
-
-        # Mute new members event
-        dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, self.new_member_handler))
-
-        # Private message handler for password validation
-        dp.add_handler(MessageHandler(Filters.private & ~Filters.command, self.private_message_handler))
+        # Register handlers directly on the application in PTB v20+
+        self.application.add_handler(CommandHandler('pass', self.pass_command))
+        self.application.add_handler(CommandHandler('version', self.version_command))
+        self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, self.new_member_handler))
+        self.application.add_handler(MessageHandler(filters.ChatType.PRIVATE & (~filters.COMMAND), self.private_message_handler))
         
-        logger.info("BotAPICore initialized with handlers.")
+        logger.info(f"BotAPICore {self.version} initialized with handlers using ApplicationBuilder.")
+        logger.info(f"Daily password generated: {self.daily_password}")
+        logger.info(f"Target group for unmute: {self.target_group}")
 
-    # Removed the start() method as it's no longer needed here.
-    # Startup (polling or webhook) is handled by the calling script.
+    # --- Polling and Idle Methods (for local execution via main.py) ---
+    def run_polling(self):
+        """Starts the bot in polling mode and blocks until interrupted."""
+        logger.info("Starting bot in polling mode...")
+        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+        logger.info("Bot polling stopped.")
 
-    def pass_command(self, update: Update, context: CallbackContext):
-        """Handle /pass command, send daily password"""
-        text = f"今日密码是: {self.daily_password}\n请私聊此密码以解除禁言。"
-        update.message.reply_text(text)
-        logger.info(f"Sent daily password to {update.effective_user.first_name}")
+    def stop_polling(self):
+        """Stops the polling loop if running."""
+        # run_polling handles shutdown gracefully on SIGINT/SIGTERM
+        # If we need manual stop: await self.application.shutdown()
+        logger.info("Attempting to stop polling (usually handled by run_polling)...")
+        # No explicit stop needed here if run_polling handles signals
 
-    def version_command(self, update: Update, context: CallbackContext):
-        """Handle /version command, send bot version"""
-        update.message.reply_text(f"当前版本: {self.version}")
-        logger.info(f"Sent version info to {update.effective_user.first_name}")
+    # --- Command Handlers ---
+    # Make command handlers async
+    async def pass_command(self, update: Update, context: CallbackContext):
+        """Handle /pass command, send daily password (Bilingual)"""
+        text = (
+            f"今日密码是 (Today's password is): {self.daily_password}\n"
+            f"请私聊此密码以解除禁言。(Please DM this password to the bot to unmute.)"
+        )
+        try:
+            await update.message.reply_text(text)
+            logger.info(f"Sent daily password to {update.effective_user.first_name}")
+        except Exception as e:
+            logger.error(f"Error replying to /pass command: {e}")
 
-    def new_member_handler(self, update: Update, context: CallbackContext):
-        """Handle new members joining the group, mute them"""
+    async def version_command(self, update: Update, context: CallbackContext):
+        """Handle /version command, send bot version (Bilingual)"""
+        text = f"当前版本 (Current version): {self.version}"
+        try:
+            await update.message.reply_text(text)
+            logger.info(f"Sent version info to {update.effective_user.first_name}")
+        except Exception as e:
+            logger.error(f"Error replying to /version command: {e}")
+
+    # --- Event Handlers --- 
+    # These were already async
+    async def new_member_handler(self, update: Update, context: CallbackContext):
+        """Handle new members joining the group, mute them (No welcome message)"""
         chat_id = update.effective_chat.id
         for member in update.message.new_chat_members:
             try:
                 permissions = ChatPermissions(can_send_messages=False)
-                context.bot.restrict_chat_member(
+                await context.bot.restrict_chat_member(
                     chat_id=chat_id,
                     user_id=member.id,
                     permissions=permissions
                 )
-                welcome = (
-                    f"欢迎 {member.first_name} 加入群组!\n"
-                    f"今日密码是: {self.daily_password}\n请私聊此密码以解除禁言。"
-                )
-                # Send welcome message to the group
-                context.bot.send_message(chat_id=chat_id, text=welcome)
-                logger.info(f"Muted new member {member.id} in chat {chat_id} and sent welcome message")
+                # Removed welcome message sending
+                logger.info(f"Muted new member {member.first_name} (ID: {member.id}) in chat {chat_id}. Welcome message removed.")
             except Exception as e:
-                logger.error(f"Error muting new member {member.id} in chat {chat_id}: {e}")
+                # Log error with traceback
+                logger.error(f"Error muting new member {member.id} in chat {chat_id}: {e}\n{traceback.format_exc()}")
 
-    def private_message_handler(self, update: Update, context: CallbackContext):
-        """Handle private messages for password validation"""
+    async def private_message_handler(self, update: Update, context: CallbackContext):
+        """Handle private messages for password validation (Bilingual, detailed error log)"""
         text = update.message.text or ''
         user = update.effective_user
+        logger.info(f"Received private message from {user.first_name} (ID: {user.id}): '{text[:20]}...'")
+        
         if text == self.daily_password:
+            logger.info(f"Correct password received from {user.first_name}. Attempting to unmute in target group: {self.target_group}")
             if not self.target_group:
-                 update.message.reply_text("错误：管理员未配置目标群组，无法解禁。")
+                 reply_text = "错误：管理员未配置目标群组，无法解禁。(Error: Target group not configured by admin, cannot unmute.)"
+                 await update.message.reply_text(reply_text)
                  logger.error(f"Cannot unmute user {user.id} because TELEGRAM_GROUP is not set.")
                  return
             try:
                 # Try to parse target_group as int (ID) or use as str (username)
                 try:
-                    chat_id_to_unmute = int(self.target_group)
+                    chat_id_to_unmute = int(self.target_group) # Assume it's a numeric ID first
+                    logger.info(f"Target group '{self.target_group}' parsed as numeric ID: {chat_id_to_unmute}")
                 except ValueError:
-                    chat_id_to_unmute = self.target_group # Assume it's @username
-                    
-                permissions = ChatPermissions(can_send_messages=True, can_send_media_messages=True, 
-                                          can_send_other_messages=True, can_add_web_page_previews=True)
-                context.bot.restrict_chat_member(
+                    # If not numeric, assume it's a username like @groupname or groupname
+                    chat_id_to_unmute = self.target_group 
+                    logger.info(f"Target group '{self.target_group}' treated as username/link.")
+                    # Prepending '@' might be necessary if it wasn't included, 
+                    # but restrict_chat_member usually handles this. Let's try without first.
+                    # if not chat_id_to_unmute.startswith('@'):
+                    #     chat_id_to_unmute = '@' + chat_id_to_unmute
+                    #     logger.info(f"Prepended '@', now using: {chat_id_to_unmute}")
+                        
+                # Correct Permissions for PTB v20+ to allow most message types
+                permissions = ChatPermissions(
+                    can_send_messages=True, 
+                    can_send_audios=True,
+                    can_send_documents=True,
+                    can_send_photos=True,
+                    can_send_videos=True,
+                    can_send_video_notes=True,
+                    can_send_voice_notes=True,
+                    can_send_polls=True,
+                    can_send_other_messages=True, # Allows stickers, gifs etc.
+                    can_add_web_page_previews=True,
+                    # Keep restrictions on admin-like actions
+                    can_change_info=False,
+                    can_invite_users=False,
+                    can_pin_messages=False
+                )
+                
+                logger.info(f"Calling restrict_chat_member for user {user.id} in chat {chat_id_to_unmute} with permissions: {permissions}")
+                success = await context.bot.restrict_chat_member(
                     chat_id=chat_id_to_unmute,
                     user_id=user.id,
                     permissions=permissions
                 )
-                update.message.reply_text("密码正确，已在目标群组解除禁言。")
-                logger.info(f"Unmuted user {user.id} in target group {self.target_group}")
+                
+                if success:
+                    reply_text = "密码正确，已在目标群组解除禁言。(Password correct, you have been unmuted in the target group.)"
+                    await update.message.reply_text(reply_text)
+                    logger.info(f"Successfully unmuted user {user.id} in target group {self.target_group}. API returned success.")
+                else:
+                    reply_text = "在目标群组解禁失败（API未返回成功）。请联系管理员。(Failed to unmute in target group (API did not return success). Please contact admin.)"
+                    await update.message.reply_text(reply_text)
+                    logger.warning(f"Failed to unmute user {user.id} in group {self.target_group}. API returned non-success.")
+
             except Exception as e:
-                update.message.reply_text("在目标群组解禁失败，请联系管理员。")
-                logger.error(f"Error unmuting user {user.id} in group {self.target_group}: {e}")
+                reply_text = "在目标群组解禁失败。请联系管理员。(Failed to unmute in target group. Please contact admin.)"
+                await update.message.reply_text(reply_text)
+                logger.error(f"Error unmuting user {user.id} in group {self.target_group}: {e}\n{traceback.format_exc()}")
         else:
-            update.message.reply_text("密码错误或非密码消息。请发送今日密码来解除禁言。") 
+            reply_text = (
+                "密码错误或非密码消息。请发送今日密码以解除禁言。\n"
+                "(Incorrect password or not a password message. Please send today's password to get unmuted.)"
+            )
+            await update.message.reply_text(reply_text)
+            logger.info(f"Incorrect password or non-password message received from {user.first_name}.")
+
+    # --- Webhook Integration Method (for web_service.py) ---
+    async def process_update(self, update_data: dict):
+        """Process a single update received via webhook."""
+        async with self.application:
+            update = Update.de_json(update_data, self.application.bot)
+            await self.application.process_update(update)
+            logger.debug("Processed webhook update.") 

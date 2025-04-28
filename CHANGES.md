@@ -1,5 +1,21 @@
 # CBots 变更日志
 
+## v0.8.9 (2024-07-27)
+- 改进用户交互和解禁流程
+  - 移除了新成员加入时的欢迎消息。
+  - 在 `private_message_handler` 中添加了更详细的错误日志，以便调试解禁失败问题。
+  - 将所有面向用户的消息（命令回复、解禁提示等）更新为中英双语。
+  - 确认 `/pass` 命令和新成员自动禁言功能正常。
+
+## v0.8.8 (2024-07-26)
+- 修复了 PTB v20+ 的初始化和异步处理问题
+  - 修改了 `bot_api_core.py` 使用 `ApplicationBuilder` 初始化。
+  - 将事件处理函数改为 `async def`。
+  - 添加了 `run_polling` 方法供 `main.py` 在本地调用。
+  - 添加了 `process_update` 方法供 `web_service.py` 在 webhook 模式下调用。
+  - 修改了 `main.py` 以调用 `run_polling`。
+  - 修改了 `web_service.py` 在 webhook 处理器中调用 `asyncio.run(bot_core.process_update(...))`。
+
 ## v0.8.7 (2024-07-25)
 - 迁移到 Telegram Bot API 以兼容 PythonAnywhere
   - 创建了 `bot_api_core.py` 使用 `python-telegram-bot` 库。

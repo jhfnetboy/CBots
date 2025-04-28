@@ -6,6 +6,7 @@ import traceback
 from dotenv import load_dotenv
 import telegram # Import telegram library
 from bot_api_core import BotAPICore # Import our BotAPICore
+import asyncio # Needed for running async webhook processing
 
 # Load environment variables
 load_dotenv()
@@ -39,20 +40,26 @@ app.config['JSON_AS_ASCII'] = False
 # This route will be called by Telegram when new updates arrive
 @app.route(f'/{bot_core.token}', methods=['POST']) # Route uses the bot token
 def webhook_handler():
-    if bot_core:
+    if bot_core and hasattr(bot_core, 'process_update'):
         try:
             update_json = request.get_json(force=True)
-            update = telegram.Update.de_json(update_json, bot_core.updater.bot)
-            # Process the update using the bot's dispatcher
-            bot_core.updater.dispatcher.process_update(update)
-            return Response(status=200) # Must return 200 OK to Telegram
+            # Run the async process_update function in the event loop
+            # Since Flask runs synchronously, we need a way to run the async PTB code.
+            # A simple approach is asyncio.run(), but this creates a new loop each time.
+            # A better approach for production might involve an async Flask framework (like Quart)
+            # or managing a persistent asyncio loop.
+            # For simplicity with Flask on PythonAnywhere, let's use asyncio.run for now.
+            asyncio.run(bot_core.process_update(update_json))
+            return Response(status=200) # Must return 200 OK to Telegram immediately
         except Exception as e:
             logger.error(f"Error processing webhook update: {e}")
             logger.error(traceback.format_exc())
-            return Response("Error processing update", status=500)
+            # Still return 200 to Telegram to avoid retries, log the error server-side.
+            return Response(status=200) 
     else:
-        logger.error("Bot core not initialized, cannot process webhook.")
-        return Response("Bot not initialized", status=500)
+        logger.error("Bot core not initialized or process_update missing, cannot process webhook.")
+        # Still return 200 to Telegram
+        return Response(status=200)
 # --------------------
 
 # --- Other Routes (e.g., status page) ---
