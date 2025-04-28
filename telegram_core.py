@@ -11,6 +11,7 @@ from message_handlers import MessageHandlers
 from io import BytesIO
 import time
 from image_sender import ImageSender
+import traceback
 
 # Configure logging
 logging.basicConfig(
@@ -230,7 +231,6 @@ class TelegramCore:
             
         except Exception as e:
             logger.error(f"Error sending message: {e}")
-            import traceback
             logger.error(f"Stack trace: {traceback.format_exc()}")
             return {"error": str(e)}
 
@@ -269,3 +269,63 @@ class TelegramCore:
         except Exception as e:
             logger.error(f"Error stopping Telegram core service: {e}", exc_info=True)
             raise 
+
+    async def handle_command(self, event):
+        """处理命令消息"""
+        try:
+            # 提取命令和参数
+            message = event.message
+            text = message.text
+            command = text.split(' ')[0][1:].lower() if text.startswith('/') else ''
+            
+            # 记录命令
+            logger.info(f"收到命令: {command} 来自用户: {message.sender_id}")
+            
+            # 处理密码命令
+            if command == 'pass':
+                logger.info("收到每日密码请求，发送当前密码")
+                
+                # 确保daily_password已初始化
+                if not hasattr(self, 'daily_password') or not self.daily_password:
+                    self.generate_daily_password()
+                    logger.info(f"生成新的每日密码: {self.daily_password}")
+                
+                try:
+                    # 发送每日密码
+                    reply_text = f"今日密码是: {self.daily_password}\n新成员需要私聊该密码给机器人解除发言限制。"
+                    if event.is_group:
+                        # 在群组内回复
+                        await event.reply(reply_text)
+                        logger.info(f"在群组内发送了每日密码给用户 {message.sender_id}")
+                    else:
+                        # 私聊回复
+                        await self.client.send_message(message.sender_id, reply_text)
+                        logger.info(f"通过私聊发送了每日密码给用户 {message.sender_id}")
+                    
+                    return True
+                except Exception as e:
+                    logger.error(f"发送每日密码失败: {e}")
+                    logger.error(traceback.format_exc())
+                    return False
+                
+            # 处理版本命令
+            elif command == 'version':
+                version = "0.8.4"  # 当前版本号
+                try:
+                    await event.reply(f"当前版本: {version}")
+                    logger.info(f"发送版本信息给用户 {message.sender_id}")
+                    return True
+                except Exception as e:
+                    logger.error(f"发送版本信息失败: {e}")
+                    return False
+            
+            # 处理其他命令
+            # ...
+            
+            logger.info(f"未处理的命令: {command}")
+            return False
+            
+        except Exception as e:
+            logger.error(f"处理命令时出错: {e}")
+            logger.error(traceback.format_exc())
+            return False 

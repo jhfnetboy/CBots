@@ -1,18 +1,35 @@
 import logging
 from telethon import events
 from datetime import datetime
+import traceback
 
 logger = logging.getLogger(__name__)
+
+def is_message_to_me(message, me):
+    """检查消息是否@了机器人"""
+    if not message or not me:
+        return False
+    
+    # 检查消息文本中是否包含@用户名
+    if hasattr(message, 'text') and message.text:
+        if f"@{me.username}" in message.text:
+            return True
+    
+    # 检查消息是否直接提及了机器人
+    if hasattr(message, 'mentioned') and message.mentioned:
+        return True
+    
+    return False
 
 class MessageHandlers:
     def __init__(self, client, daily_password, target_group):
         self.client = client
         self.daily_password = daily_password
         self.target_group = target_group
-        self.VERSION = "0.23.50"  # 独立的版本号定义
+        self.VERSION = "0.25.00"  # 更新版本号
 
     async def handle_new_member(self, event):
-        """Handle new member joined event"""
+        """处理新成员加入事件"""
         try:
             new_member = event.user
             if not new_member:
@@ -20,7 +37,7 @@ class MessageHandlers:
                 return
             
             chat = await event.get_chat()
-            logger.info(f"New member {new_member.first_name} (ID: {new_member.id}) joined group {chat.title}")
+            logger.info(f"新成员 {new_member.first_name} (ID: {new_member.id}) 加入群组 {chat.title}")
             
             # 永久禁言新成员
             try:
@@ -34,124 +51,53 @@ class MessageHandlers:
                     send_gifs=False,
                     send_games=False
                 )
-                logger.info(f"Successfully muted new member {new_member.first_name} permanently")
+                logger.info(f"成功禁言新成员 {new_member.first_name}")
                 
                 # 发送欢迎消息
                 welcome_message = (
-                    f"Welcome {new_member.first_name} to the group!\n"
-                    "To maintain group order, new members are muted.\n"
-                    f"Today's password is: {self.daily_password}\n"
-                    "Please send the password to the bot in private chat to unmute."
+                    f"欢迎 {new_member.first_name} 加入群组!\n"
+                    "为了维护群组秩序，新成员已被自动禁言。\n"
+                    f"今日密码是: {self.daily_password}\n"
+                    "请私聊机器人发送密码来解除禁言。"
                 )
                 await event.reply(welcome_message)
-                logger.info(f"Sent welcome message to {new_member.first_name}")
+                logger.info(f"已发送欢迎消息给 {new_member.first_name}")
                 
             except Exception as e:
-                logger.error(f"Error muting new member: {str(e)}")
+                logger.error(f"禁言新成员时出错: {str(e)}")
                 
         except Exception as e:
-            logger.error(f"Error handling new member: {str(e)}")
+            logger.error(f"处理新成员时出错: {str(e)}")
 
     async def handle_command(self, event, command):
         """处理命令消息"""
         try:
             sender = await event.get_sender()
             username = sender.first_name if sender else "user"
-            is_private = event.is_private
             
-            if command.lower() == '/hi':
-                await self.handle_hi_command(event)
+            if command.lower() == '/pass':
+                # 在任何场景都直接回复当日密码
+                await event.reply(f"今日密码: {self.daily_password}")
+                logger.info(f"已回复密码给用户 {username}")
             elif command.lower() == '/help':
                 await self.handle_help_command(event)
-            elif command.lower() == '/pass':
-                # 在任何场景都直接回复当日密码
-                await event.reply(f"Today's password: {self.daily_password}")
             elif command.lower() == '/version':
-                await self.handle_version_command(event)
-            elif command.lower() == '/price':
-                await self.handle_price_command(event)
-            elif command.lower() == '/event':
-                await self.handle_event_command(event)
-            elif command.lower() == '/task':
-                await self.handle_task_command(event)
-            elif command.lower() == '/pnts':
-                await self.handle_pnts_command(event)
-            elif command.lower() == '/account':
-                await self.handle_account_command(event)
+                await event.reply(f"机器人版本: {self.VERSION}")
             else:
-                await event.reply(f"Hi {username}, you invoke function: {command[1:]}")
+                await event.reply(f"您好 {username}, 此版本只支持 /pass、/help 和 /version 命令")
                 
         except Exception as e:
-            logger.error(f"Error handling command: {str(e)}")
+            logger.error(f"处理命令时出错: {str(e)}")
     
     async def handle_help_command(self, event):
         """处理 /help 命令，显示帮助信息"""
         help_text = (
-            "Available commands:\n"
-            "/help - Show this help message in public\n"
-            "/hi - Say hello in public\n"
-            "/price - Show price information in public group\n"
-            "/event - Show events list in public group\n"
-            "/task - Show task list in public group\n"
-            "/PNTs - Show your PNTs information in private chat\n"
-            "/account - Show account information in private chat\n"
-            "/version - Show bot version in public"
+            "可用命令:\n"
+            "/help - 显示此帮助信息\n"
+            "/pass - 获取今日密码\n"
+            "/version - 显示机器人版本"
         )
         await event.reply(help_text)
-    
-    async def handle_hi_command(self, event):
-        """处理 /hi 命令，打招呼"""
-        await event.reply("Hi, my friends, this is COS72 Bot.")
-    
-    async def handle_version_command(self, event):
-        """处理 /version 命令，显示版本信息"""
-        await event.reply(f"Bot version: {self.VERSION}")
-    
-    async def handle_price_command(self, event):
-        """处理 /price 命令，显示价格信息"""
-        await event.reply("Current price information: $1.23 (+5.2%)")
-    
-    async def handle_event_command(self, event):
-        """处理 /event 命令，显示事件列表"""
-        events_text = (
-            "Upcoming events:\n"
-            "1. Community Call - April 5th, 2025\n"
-            "2. Hackathon - April 10-12, 2025\n"
-            "3. AMA Session - April 15th, 2025"
-        )
-        await event.reply(events_text)
-    
-    async def handle_task_command(self, event):
-        """处理 /task 命令，显示任务列表"""
-        tasks_text = (
-            "Current tasks:\n"
-            "1. Community Testing - 100 PNTs\n"
-            "2. Bug Reporting - 50 PNTs\n"
-            "3. Documentation Review - 30 PNTs"
-        )
-        await event.reply(tasks_text)
-    
-    async def handle_pnts_command(self, event):
-        """处理 /pnts 命令，显示 PNTs 信息"""
-        if event.is_private:
-            await event.reply("Your PNTs balance: 250 PNTs\nRank: Silver Member")
-        else:
-            await event.reply("Please send the /PNTs command in a private message to check your PNTs information.")
-    
-    async def handle_account_command(self, event):
-        """处理 /account 命令，显示账户信息"""
-        if event.is_private:
-            account_info = (
-                "Account Information:\n"
-                f"Name: {event.sender.first_name}\n"
-                f"ID: {event.sender.id}\n"
-                "Membership: Active since January 2025\n"
-                "PNTs: 250\n"
-                "Rank: Silver Member"
-            )
-            await event.reply(account_info)
-        else:
-            await event.reply("Please send the /account command in a private message to check your account information.")
 
     async def handle_mention(self, event):
         """处理 @ 提及消息"""
@@ -160,10 +106,10 @@ class MessageHandlers:
             username = sender.first_name if sender else "user"
             message_text = event.message.text
             
-            await event.reply(f"Hi, dear {username}, I got your message: {message_text}")
+            await event.reply(f"您好 {username}，我已收到您的消息: {message_text}")
             
         except Exception as e:
-            logger.error(f"Error handling mention: {str(e)}")
+            logger.error(f"处理@提及时出错: {str(e)}")
 
     async def handle_private_message(self, event):
         """处理私聊消息"""
@@ -193,54 +139,121 @@ class MessageHandlers:
                             send_gifs=True,
                             send_games=True
                         )
-                        await event.reply("Password correct! You have been unmuted.")
-                        logger.info(f"Successfully unmuted user {sender.first_name} in group {self.target_group}")
+                        await event.reply("密码正确！您已被解除禁言。")
+                        logger.info(f"成功解禁用户 {sender.first_name}")
                     except Exception as e:
-                        logger.error(f"Error unmuting user in group {self.target_group}: {str(e)}")
-                        await event.reply("Failed to unmute, please contact admin.")
+                        logger.error(f"解禁用户时出错: {str(e)}")
+                        await event.reply("解禁失败，请联系管理员。")
                 else:
-                    await event.reply("Target group not set, please contact admin.")
+                    logger.error("未设置目标群组，无法解禁用户")
+                    await event.reply("未设置目标群组，无法解禁。请联系管理员。")
             else:
-                await event.reply("Incorrect password, please try again.")
+                await event.reply(f"您好，如果您是新用户，请发送今日密码来解除禁言。\n今日密码可在群内通过 /pass 命令获取。")
                 
         except Exception as e:
-            logger.error(f"Error handling private message: {str(e)}")
+            logger.error(f"处理私聊消息时出错: {str(e)}")
+
+    async def handle_chat_action(self, event):
+        """处理群组事件"""
+        try:
+            # 如果是新成员加入
+            if event.user_joined or event.user_added:
+                await self.handle_new_member(event)
+        except Exception as e:
+            logger.error(f"处理群组事件时出错: {str(e)}")
 
     async def handle_message(self, event):
-        """处理所有消息"""
+        """处理来自群组的消息"""
         try:
-            # 获取消息信息
-            message_text = event.message.text
-            sender = await event.get_sender()
-            username = sender.first_name if sender else "user"
-            chat = await event.get_chat()
-            chat_title = chat.title if chat else "unknown chat"
+            message = event.message
+            text = message.text if hasattr(message, 'text') else ''
             
-            # 记录所有消息
-            logger.info(f"Message from {username} in {chat_title}: {message_text}")
-            
-            # 处理 @ 提及
-            if hasattr(event.message, 'mentioned') and event.message.mentioned:
-                await self.handle_mention(event)
-                return
+            # 记录消息
+            logger.info(f"收到群组消息: {text[:30]}... 来自用户ID: {message.sender_id}")
             
             # 处理命令
-            if message_text.startswith('/'):
-                await self.handle_command(event, message_text)
+            if text.startswith('/'):
+                logger.info(f"检测到命令: {text}")
+                
+                # 分离命令和参数
+                parts = text.split(' ', 1)
+                command = parts[0][1:].lower()  # 去掉/并转为小写
+                args = parts[1] if len(parts) > 1 else ''
+                
+                # 处理pass命令
+                if command == 'pass':
+                    logger.info("收到每日密码请求，发送当前密码")
+                    
+                    # 发送每日密码
+                    reply_text = f"今日密码是: {self.daily_password}\n新成员需要私聊该密码给机器人解除发言限制。"
+                    await self.client.send_message(
+                        event.chat_id,
+                        reply_text,
+                        reply_to=message.id
+                    )
+                    logger.info(f"已发送每日密码到群组, 响应用户: {message.sender_id}")
+                    return
+                    
+                # 处理其他命令...
+                
+                # 处理版本命令
+                elif command == 'version':
+                    from web_service import VERSION
+                    await self.client.send_message(
+                        event.chat_id,
+                        f"当前版本: {VERSION}", 
+                        reply_to=message.id
+                    )
+                    logger.info(f"已发送版本信息到群组")
+                    return
+                    
+            # 处理@bot的消息
+            if is_message_to_me(message, self.client.get_me()):
+                await self.handle_mentioned_message(event)
+                return
                 
         except Exception as e:
-            logger.error(f"Error handling message: {str(e)}")
+            logger.error(f"处理群组消息时出错: {e}")
+            logger.error(traceback.format_exc())
 
     async def send_online_message(self):
-        """发送上线消息到群组"""
+        """发送上线消息"""
         try:
             if self.target_group:
-                message = (
-                    f"🤖 Bot is now online!\n\n"
-                    f"Today's password is: {self.daily_password}\n"
-                    "New members will be muted, please send the password to the bot in private chat to unmute."
-                )
+                message = f"机器人已上线！\n版本: {self.VERSION}\n今日密码: {self.daily_password}\n新用户请私聊机器人发送密码解除禁言。"
                 await self.client.send_message(self.target_group, message)
-                logger.info("Online message sent successfully")
+                logger.info("已发送上线消息")
+            else:
+                logger.warning("未设置目标群组，跳过发送上线消息")
         except Exception as e:
-            logger.error(f"Error sending online message: {str(e)}") 
+            logger.error(f"发送上线消息时出错: {str(e)}")
+            
+    def generate_random_message(self):
+        """生成随机提醒消息"""
+        return f"每日提醒: 新用户需要私聊机器人发送密码才能解除禁言。今日密码: {self.daily_password}"
+
+    async def handle_mentioned_message(self, event):
+        """处理@bot的消息"""
+        try:
+            message = event.message
+            sender = await event.get_sender()
+            username = sender.first_name if sender else "用户"
+            
+            # 提取消息文本
+            text = message.text if hasattr(message, 'text') else ''
+            
+            # 记录@消息
+            logger.info(f"收到@消息: {text[:30]}... 来自用户: {username}")
+            
+            # 回复用户
+            reply_text = f"您好，{username}！我已收到您的消息：{text}"
+            await self.client.send_message(
+                event.chat_id,
+                reply_text,
+                reply_to=message.id
+            )
+            logger.info(f"已回复@消息给用户: {username}")
+            
+        except Exception as e:
+            logger.error(f"处理@消息时出错: {e}")
+            logger.error(traceback.format_exc()) 

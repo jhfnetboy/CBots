@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBots 服务状态</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .status-card {
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 3px;
+        }
+        .status-item {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .status-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .status-value {
+            color: #6c757d;
+        }
+        .status-value.active {
+            color: #28a745;
+        }
+        .status-value.inactive {
+            color: #dc3545;
+        }
+        .version {
+            text-align: center;
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 20px;
+        }
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CBots 服务状态</h1>
+        
+        <div class="status-card">
+            <div class="status-item">
+                <span class="status-label">服务状态:</span>
+                <span class="status-value active" id="service-status">检查中...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">事件循环:</span>
+                <span class="status-value" id="event-loop-status">检查中...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">上次检查时间:</span>
+                <span class="status-value" id="last-check-time">-</span>
+            </div>
+        </div>
+        
+        <div class="version">
+            <p>当前版本: <span id="version">{{ version }}</span></p>
+        </div>
+        
+        <footer>
+            <p>© 2024 CBots - 精简版Mute机器人</p>
+        </footer>
+    </div>
+
+    <script>
+        // 定期检查服务状态
+        function checkStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusEl = document.getElementById('service-status');
+                    const eventLoopEl = document.getElementById('event-loop-status');
+                    const timeEl = document.getElementById('last-check-time');
+                    
+                    if (data.success) {
+                        statusEl.textContent = '运行中';
+                        statusEl.className = 'status-value active';
+                        
+                        // 更新事件循环状态
+                        if (data.event_loop.is_running) {
+                            eventLoopEl.textContent = '活跃';
+                            eventLoopEl.className = 'status-value active';
+                        } else {
+                            eventLoopEl.textContent = '未运行';
+                            eventLoopEl.className = 'status-value inactive';
+                        }
+                        
+                        // 更新时间
+                        const date = new Date(data.time * 1000);
+                        timeEl.textContent = date.toLocaleString();
+                    } else {
+                        statusEl.textContent = '服务异常';
+                        statusEl.className = 'status-value inactive';
+                        eventLoopEl.textContent = '未知';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking status:', error);
+                    const statusEl = document.getElementById('service-status');
+                    statusEl.textContent = '无法连接服务';
+                    statusEl.className = 'status-value inactive';
+                });
+        }
+        
+        // 页面加载后立即检查状态
+        window.onload = function() {
+            checkStatus();
+            // 每30秒检查一次状态
+            setInterval(checkStatus, 30000);
+        };
+    </script>
+</body>
+</html> 

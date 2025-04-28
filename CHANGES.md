@@ -1,5 +1,81 @@
 # CBots 变更日志
 
+## v0.8.6 (2024-07-24)
+- 修复了@消息处理功能
+  - 添加了缺失的`is_message_to_me`函数用于检测@消息
+  - 添加了`handle_mentioned_message`函数处理@消息的响应
+  - 完善了消息处理流程，确保所有类型的消息都能正确响应
+  - 确认mute和unmute功能可正常工作
+
+## v0.8.5 (2024-07-23)
+- 解决了Web服务启动和命令处理问题
+  - 修改了`main.py`中的`start_web_service`函数，确保正确启动Web服务
+  - 添加了端口测试机制，验证服务是否成功启动
+  - 增强了`/pass`命令处理，确保能正确响应密码请求
+  - 添加了`/version`命令显示当前版本号
+  - 优化了日志输出，提供更详细的状态信息
+
+## v0.8.4 (2024-07-22)
+- 解决了SQLite数据库锁定问题
+  - 修改了`main.py`中的服务启动逻辑，使用全局`TelegramCore`实例
+  - 优化了`telegram_api.py`中的`start`方法，增强了对已启动核心服务的检测
+  - 增加了更详细的日志输出，便于故障排查
+  - 延长了服务启动之间的等待时间，确保服务正常初始化
+
+## v0.8.3 (2024-07-21)
+- 修复了telegram_api_service启动问题
+  - 将错误的`start_api_server()`调用替换为正确的`start()`异步方法
+  - 添加了更完善的异步事件循环处理
+  - 改进了错误记录，添加了traceback输出以便更好地诊断问题
+
+## v0.8.2 (2024-07-20)
+- 删除了不必要的文件以简化项目结构
+  - 移除了`twitter_auth.py`, `twitter_api.py`和`twitter_core.py`
+  - 删除了`webhooks.py`和`handler.py`
+- 简化了导入和依赖关系
+- 仅保留了telegram核心功能
+
+## v0.8.1 (2024-07-19)
+- 添加了`tweepy_patch.py`解决imghdr模块在Python 3.13中的兼容性问题
+- 更新了环境变量加载机制
+- 优化了日志记录格式
+
+## v0.8.0 (2024-07-18)
+- 初始化精简版MuteBot
+- 仅保留禁言和验证功能
+- 移除了Twitter相关功能
+- 实现了基本的Telegram核心和API服务
+
+## 0.25.01 (2024-06-01)
+- 修复main.py中无法导入WebService类的问题
+- 更改导入方式，使用import web_service替代from web_service import WebService
+- 修改telegram_api_service函数中实例化TelegramAPI的方式
+
+## 0.25.00 (2024-06-01)
+尝试一个简单的mutebot版本，在当下功能进行裁剪：
+1. 去掉twitter所有功能
+   - 移除了TwitterCore和TwitterAPI相关代码
+   - 从main.py中移除Twitter服务启动
+2. 去掉telegram bot复杂功能，只保留核心功能
+   - 仅保留/pass命令来获得当日密码
+   - 保留新用户进入自动mute功能
+   - 保留私聊bot发送密码后解除mute功能
+3. 简化web页面
+   - 创建简单的状态显示页面status.html
+   - 页面只显示服务状态和版本
+4. 添加tweepy补丁解决Python 3.13兼容性问题
+   - 创建tweepy_patch.py模块使用mimetypes替代imghdr
+5. 提供PythonAnywhere部署指南
+   - 创建pythonanywhere_deployment.md详细说明部署步骤
+
+修改的文件：
+- web_service.py：更新版本号至0.25.00，移除Twitter相关功能
+- message_handlers.py：精简为只保留核心功能
+- main.py：移除Twitter相关功能
+- tweepy_patch.py：新增模块解决兼容性问题
+- templates/status.html：新增简化的状态页面
+- pythonanywhere_deployment.md：新增部署指南
+
 ## 版本 0.24.62 (2024-06-01)
 - 添加tweepy_patch.py模块，修复Python 3.13环境下imghdr模块缺失的问题
 - 使用mimetypes模块替代imghdr模块，确保tweepy库正常运行
@@ -81,4 +157,28 @@
 - 确保图片 BytesIO 对象带有正确的文件名和扩展名属性
 - 优化图片处理逻辑，支持从 Base64 和 URL 正确提取扩展名
 - 统一图片处理方式，使用固定的扩展名格式 (jpeg) 确保兼容性
-- 改进错误处理和日志记录 
+- 改进错误处理和日志记录
+
+## v0.8.3 (2024-07-21)
+- 修复了telegram_api_service启动问题
+  - 将错误的`start_api_server()`调用替换为正确的`start()`异步方法
+  - 添加了更完善的异步事件循环处理
+  - 改进了错误记录，添加了traceback输出以便更好地诊断问题
+
+## v0.8.2 (2024-07-20)
+- 删除了不必要的文件以简化项目结构
+  - 移除了`twitter_auth.py`, `twitter_api.py`和`twitter_core.py`
+  - 删除了`webhooks.py`和`handler.py`
+- 简化了导入和依赖关系
+- 仅保留了telegram核心功能
+
+## v0.8.1 (2024-07-19)
+- 添加了`tweepy_patch.py`解决imghdr模块在Python 3.13中的兼容性问题
+- 更新了环境变量加载机制
+- 优化了日志记录格式
+
+## v0.8.0 (2024-07-18)
+- 初始化精简版MuteBot
+- 仅保留禁言和验证功能
+- 移除了Twitter相关功能
+- 实现了基本的Telegram核心和API服务 

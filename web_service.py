@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 版本信息
-VERSION = "0.24.62"
+VERSION = "0.25.00"
 
 # 全局事件循环线程
 event_loop_thread = None
@@ -48,11 +48,11 @@ try:
 except Exception as e:
     logger.error(f"Error registering blueprint: {e}")
 
-# 首页路由
+# 首页路由 - 简化只显示服务状态和版本
 @app.route('/')
 def index():
-    """主页路由"""
-    return render_template('index.html')
+    """主页路由 - 显示服务状态和版本"""
+    return render_template('status.html', version=VERSION)
 
 # 状态路由
 @app.route('/status')
@@ -83,76 +83,6 @@ def status():
 def send_message():
     """发送消息API - 重定向到web_routes中的实现"""
     return web_bp.send_message()
-
-# 发送推文API
-@app.route('/api/send_tweet', methods=['POST'])
-def send_tweet():
-    """发送推文API"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"success": False, "error": "未提供数据"}), 400
-        
-        # 提取消息内容
-        message = data.get('message')
-        media_urls = data.get('media_urls', [])
-        
-        # 验证必填字段
-        if not message:
-            return jsonify({"success": False, "error": "推文内容不能为空"}), 400
-        
-        logger.info(f"准备发送推文: {message[:100]}...")
-        
-        # 获取当前事件循环
-        loop = get_or_create_loop()
-        
-        # 创建发送推文的异步函数
-        async def send_tweet_task():
-            try:
-                # 这里应该调用Twitter API功能
-                # 暂时模拟一个成功的结果
-                await asyncio.sleep(1)  # 模拟API调用
-                
-                return {
-                    "success": True, 
-                    "message": "推文已成功发送",
-                    "tweet_id": "simulated_id_" + str(int(time.time())),
-                    "content": message,
-                    "media_count": len(media_urls) if media_urls else 0
-                }
-            except Exception as e:
-                logger.error(f"发送推文失败: {e}")
-                logger.error(traceback.format_exc())
-                return {"success": False, "error": str(e)}
-        
-        # 根据事件循环状态选择执行方式
-        if loop.is_running():
-            # 如果循环正在运行，使用run_coroutine_threadsafe
-            logger.info("事件循环正在运行，使用run_coroutine_threadsafe发送推文")
-            future = asyncio.run_coroutine_threadsafe(send_tweet_task(), loop)
-            try:
-                result = future.result(timeout=30)  # 30秒超时
-                return jsonify(result)
-            except Exception as e:
-                logger.error(f"发送推文操作失败: {e}")
-                return jsonify({"success": False, "error": str(e)})
-        else:
-            # 如果循环没有运行，使用run_until_complete
-            logger.info("事件循环未运行，使用run_until_complete发送推文")
-            try:
-                result = loop.run_until_complete(
-                    asyncio.wait_for(send_tweet_task(), timeout=30)
-                )
-                return jsonify(result)
-            except Exception as e:
-                logger.error(f"发送推文操作失败: {e}")
-                logger.error(traceback.format_exc())
-                return jsonify({"success": False, "error": str(e)})
-    
-    except Exception as e:
-        logger.error(f"处理发送推文请求失败: {e}")
-        logger.error(traceback.format_exc())
-        return jsonify({"success": False, "error": str(e)})
 
 # 错误处理
 @app.errorhandler(500)
