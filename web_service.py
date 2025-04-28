@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 版本信息
-VERSION = "0.24.61"
+VERSION = "0.24.62"
 
 # 全局事件循环线程
 event_loop_thread = None
