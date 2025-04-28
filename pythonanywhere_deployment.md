@@ -69,7 +69,7 @@ PRD_PORT=8872
 
 ```bash
 cd ~/mutebot
-python -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate && python main.py
 ```
 
@@ -96,13 +96,6 @@ if path not in sys.path:
 
 # 设置环境变量
 os.environ['PYTHONPATH'] = path
-
-# 导入补丁模块
-try:
-    import tweepy_patch
-    print("已加载tweepy补丁，修复imghdr模块")
-except Exception as e:
-    print(f"加载tweepy补丁失败: {e}")
 
 # 导入Flask应用
 from web_service import app as application
