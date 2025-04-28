@@ -56,36 +56,36 @@
     *   点击 "WSGI configuration file" 链接 (通常是 `/var/www/yourusername_pythonanywhere_com_wsgi.py`)。
     *   将其内容替换为:
         ```python
-        import sys
-        import os
+import sys
+import os
 
-        # 添加项目路径到 sys.path
-        project_home = '/home/yourusername/mutebot' # *** 修改为你的项目路径 ***
-        if project_home not in sys.path:
-            sys.path.insert(0, project_home)
+# 添加项目路径到 sys.path
+project_home = '/home/yourusername/mutebot' # *** 修改为你的项目路径 ***
+if project_home not in sys.path:
+   sys.path.insert(0, project_home)
 
-        # 加载项目目录下的 .env 文件
-        from dotenv import load_dotenv
-        dotenv_path = os.path.join(project_home, '.env')
-        if os.path.exists(dotenv_path):
-            load_dotenv(dotenv_path)
-            print(f"Loaded environment variables from {dotenv_path}") # Optional: for debugging
-        else:
-            print(f"Warning: .env file not found at {dotenv_path}") # Optional: for debugging
+# 加载项目目录下的 .env 文件
+from dotenv import load_dotenv
+dotenv_path = os.path.join(project_home, '.env')
+if os.path.exists(dotenv_path):
+   load_dotenv(dotenv_path)
+   print(f"Loaded environment variables from {dotenv_path}") # Optional: for debugging
+else:
+   print(f"Warning: .env file not found at {dotenv_path}") # Optional: for debugging
 
-        # 设置 PYTHONPATH 环境变量 (可选, 但有时有帮助)
-        # os.environ['PYTHONPATH'] = project_home
+# 设置 PYTHONPATH 环境变量 (可选, 但有时有帮助)
+# os.environ['PYTHONPATH'] = project_home
 
-        # 导入 Flask 应用
-        try:
-            from web_service import app as application
-            print("Successfully imported Flask application from web_service") # Optional: for debugging
-        except Exception as e:
-            # Log the error for debugging in the WSGI error log
-            print(f"Error importing Flask application: {e}")
-            import traceback
-            traceback.print_exc()
-            raise # Re-raise the exception so PythonAnywhere logs it
+# 导入 Flask 应用
+try:
+   from web_service import app as application
+   print("Successfully imported Flask application from web_service") # Optional: for debugging
+except Exception as e:
+   # Log the error for debugging in the WSGI error log
+   print(f"Error importing Flask application: {e}")
+   import traceback
+   traceback.print_exc()
+   raise # Re-raise the exception so PythonAnywhere logs it
         ```
     *   **务必** 将 `yourusername` 替换为你的 PythonAnywhere 用户名。
     *   保存文件。

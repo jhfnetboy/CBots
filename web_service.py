@@ -2,6 +2,7 @@
 from flask import Flask, render_template, jsonify, request, Response
 import logging
 import os
+import sys # Import sys for stderr logging
 import traceback
 from dotenv import load_dotenv
 import telegram # Import telegram library
@@ -11,15 +12,35 @@ import asyncio # Needed for running async webhook processing
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# --- Configure Logging EARLY --- 
+# Log to stderr (goes to PythonAnywhere Error log) AND a file
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__) # Get root logger or a specific one
+logger.setLevel(logging.INFO) # Set desired log level
+
+# File Handler (Use absolute path for PA)
+log_file_path = '/home/jhfnetboy/dev-CBots/bot.log' # *** USE YOUR ACTUAL PATH ***
+try:
+    file_handler = logging.FileHandler(log_file_path)
+    file_handler.setFormatter(log_formatter)
+    logger.addHandler(file_handler)
+except Exception as e:
+    print(f"Error setting up FileHandler for {log_file_path}: {e}") # Print error if file logging fails
+
+# Stream Handler (to stderr for WSGI error log)
+stream_handler = logging.StreamHandler(sys.stderr)
+stream_handler.setFormatter(log_formatter)
+logger.addHandler(stream_handler)
+
+logger.info("--- web_service.py execution started --- ")
+# -----------------------------
 
 # --- Bot Initialization ---
+logger.info("Initializing BotAPICore...")
 try:
     bot_core = BotAPICore() # Instantiate the bot core
     VERSION = bot_core.version # Get version from bot core
+    logger.info(f"BotAPICore version {VERSION} initialized successfully.")
 except Exception as e:
     logger.error(f"Failed to initialize BotAPICore: {e}")
     logger.error(traceback.format_exc())
@@ -31,61 +52,71 @@ except Exception as e:
 app = Flask(__name__, 
            static_folder='static',
            template_folder='templates')
+logger.info("Flask app created.")
 
 # Configure app
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
 app.config['JSON_AS_ASCII'] = False
 
 # --- Webhook Route ---
-# This route will be called by Telegram when new updates arrive
-@app.route(f'/{bot_core.token}', methods=['POST']) # Route uses the bot token
+webhook_path = f'/{bot_core.token}' if bot_core else '/webhook-error-bot-not-init'
+logger.info(f"Registering webhook handler at path: {webhook_path}")
+@app.route(webhook_path, methods=['POST']) 
 def webhook_handler():
+    logger.info(f"Webhook received at {webhook_path}")
     if bot_core and hasattr(bot_core, 'process_update'):
         try:
-            update_json = request.get_json(force=True)
-            # Run the async process_update function in the event loop
-            # Since Flask runs synchronously, we need a way to run the async PTB code.
-            # A simple approach is asyncio.run(), but this creates a new loop each time.
-            # A better approach for production might involve an async Flask framework (like Quart)
-            # or managing a persistent asyncio loop.
-            # For simplicity with Flask on PythonAnywhere, let's use asyncio.run for now.
+            update_json = request.get_json(force=True, silent=True) # Use silent=True
+            if not update_json:
+                 logger.warning("Webhook received empty or non-JSON data.")
+                 return Response(status=200) # Still return 200
+            
+            logger.info(f"Webhook JSON keys: {list(update_json.keys())}")
+            # Run the async process_update function
+            logger.debug("Calling asyncio.run(bot_core.process_update(...))")
             asyncio.run(bot_core.process_update(update_json))
+            logger.info("Successfully processed webhook update via asyncio.run.")
             return Response(status=200) # Must return 200 OK to Telegram immediately
         except Exception as e:
             logger.error(f"Error processing webhook update: {e}")
             logger.error(traceback.format_exc())
-            # Still return 200 to Telegram to avoid retries, log the error server-side.
-            return Response(status=200) 
+            return Response(status=200) # Still return 200 to Telegram
     else:
-        logger.error("Bot core not initialized or process_update missing, cannot process webhook.")
-        # Still return 200 to Telegram
-        return Response(status=200)
+        logger.error("Webhook received but Bot core not initialized or process_update missing.")
+        return Response(status=200) # Still return 200
 # --------------------
 
 # --- Other Routes (e.g., status page) ---
 @app.route('/')
 def index():
     """Homepage route - displays bot status and version"""
+    logger.debug("Request received for / route")
     return render_template('status.html', version=VERSION)
 
 @app.route('/status')
 def status():
     """Service status check"""
+    logger.debug("Request received for /status route")
     bot_status = "Initialized" if bot_core else "Initialization Failed"
-    return jsonify({
+    # Add more detailed status if possible
+    status_data = {
         "success": True,
         "version": VERSION,
-        "bot_status": bot_status
-    })
+        "bot_status": bot_status,
+        "daily_password_set": hasattr(bot_core, 'daily_password') if bot_core else False,
+        "target_group_set": bool(getattr(bot_core, 'target_group', None)) if bot_core else False
+    }
+    logger.info(f"Returning status: {status_data}")
+    return jsonify(status_data)
 # ------------------------------------
 
 # --- Error Handling ---
 @app.errorhandler(500)
 def server_error(e):
-    logger.error(f"Server error: {e}")
+    logger.error(f"Server error (500 handler): {e}")
     logger.error(traceback.format_exc())
     return jsonify({"error": "Internal server error", "details": str(e)}), 500
 # ---------------------
 
-# Note: Removed the if __name__ == '__main__': block.
-# The Flask app will be run by the WSGI server (e.g., on PythonAnywhere). 
+logger.info("--- web_service.py execution finished setup --- ")
+# Note: The Flask app will be run by the WSGI server. 
