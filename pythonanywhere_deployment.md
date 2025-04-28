@@ -1,158 +1,133 @@
-# PythonAnywhere 部署指南 - 精简版 MuteBot
+# PythonAnywhere 部署指南 - MuteBot (Bot API Webhook 模式)
 
-本指南将帮助您在 PythonAnywhere 上部署精简版的 MuteBot 服务，该版本专注于自动禁言和密码验证功能。
+本指南将帮助您在 PythonAnywhere 上部署 MuteBot 服务，使用 Telegram Bot API 的 Webhook 模式。
+此模式兼容 PythonAnywhere 的免费账户网络限制。
+如果你想在本地测试，只需运行 source venv/bin/activate && python main.py，它会自动进入 polling 模式。
 
 ## 前提条件
 
-1. 拥有 PythonAnywhere 账号（免费账号即可）
-2. 拥有 Telegram Bot Token (从 BotFather 获取)
-3. 已获取 Telegram API ID 和 API Hash
+1.  拥有 PythonAnywhere 账号（免费账号即可）
+2.  拥有 Telegram Bot Token (从 BotFather 获取)
+3.  准备好您的 PythonAnywhere Web App 域名 (e.g., `yourusername.pythonanywhere.com`)
 
-## 步骤 1: 准备 Telegram API 凭证
+## 步骤 1: 获取代码并设置环境
 
-确保您已经拥有以下信息：
+1.  登录 PythonAnywhere Dashboard。
+2.  打开一个 **Bash Console**。
+3.  克隆代码仓库 (如果尚未克隆):
+    ```bash
+    cd ~
+    # git clone https://github.com/your-repo/mutebot.git # Replace with your repo URL
+    cd mutebot # 进入项目目录
+    ```
+4.  创建并激活虚拟环境 (使用您希望的 Python 版本, 推荐 3.8+):
+    ```bash
+    python3.11 -m venv venv # Or python3.9, python3.10 etc.
+    source venv/bin/activate
+    ```
+5.  安装依赖:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-- Telegram API ID
-- Telegram API Hash
-- Telegram Bot Token
-- 目标群组用户名（如 @your_group_name）
+## 步骤 2: 配置环境变量
 
-## 步骤 2: 创建 PythonAnywhere 账号
+1.  在 PythonAnywhere **Files** 选项卡中，导航到您的项目目录 (`/home/yourusername/mutebot`)。
+2.  创建或编辑 `.env` 文件，确保包含以下内容:
+    ```dotenv
+    TELEGRAM_BOT_TOKEN=你的Bot_Token
+    TELEGRAM_GROUP=@你的目标群组用户名或ID # 用于解禁用户
+    WEBHOOK_URL=https://yourusername.pythonanywhere.com # 替换为你的 PythonAnywhere 域名
+    # FLASK_SECRET_KEY=your-secret-key # 可选，如果需要 Flask session
+    # MODE=prod # 可选, web_service.py 已默认为生产
+    ```
+    **重要:** `WEBHOOK_URL` 必须是你的 PythonAnywhere Web App 的 HTTPS 地址。
 
-1. 访问 [PythonAnywhere](https://www.pythonanywhere.com/) 并注册/登录账号
-2. 登录后进入 Dashboard 页面
+## 步骤 3: 配置 Web App 和 WSGI 文件
 
-## 步骤 3: 创建新的 Web App
+1.  在 Dashboard 中点击 **Web** 选项卡。
+2.  如果还没有 Web App，点击 **Add a new web app**:
+    *   确认域名。
+    *   选择 **Manual configuration**。
+    *   选择与您创建 venv 时相同的 Python 版本 (e.g., Python 3.11)。
+3.  **配置 Virtualenv**:
+    *   在 "Virtualenv" 部分，输入虚拟环境的路径: `/home/yourusername/mutebot/venv`。
+4.  **配置 WSGI 文件**:
+    *   点击 "WSGI configuration file" 链接 (通常是 `/var/www/yourusername_pythonanywhere_com_wsgi.py`)。
+    *   将其内容替换为:
+        ```python
+        import sys
+        import os
 
-1. 在 Dashboard 中点击 "Web" 选项卡
-2. 点击 "Add a new web app" 按钮
-3. 选择 "Manual configuration"
-4. 选择 Python 3.8 或更高版本
-5. 设置路径为 `/bot`（或您喜欢的其他路径）
+        # 添加项目路径到 sys.path
+        project_home = '/home/yourusername/mutebot' # *** 修改为你的项目路径 ***
+        if project_home not in sys.path:
+            sys.path.insert(0, project_home)
 
-## 步骤 4: 获取代码
+        # 加载项目目录下的 .env 文件
+        from dotenv import load_dotenv
+        dotenv_path = os.path.join(project_home, '.env')
+        if os.path.exists(dotenv_path):
+            load_dotenv(dotenv_path)
+            print(f"Loaded environment variables from {dotenv_path}") # Optional: for debugging
+        else:
+            print(f"Warning: .env file not found at {dotenv_path}") # Optional: for debugging
 
-1. 在 Dashboard 中点击 "Consoles" 选项卡
-2. 点击 "Bash" 创建一个新的 Bash 控制台
-3. 执行以下命令克隆代码仓库：
+        # 设置 PYTHONPATH 环境变量 (可选, 但有时有帮助)
+        # os.environ['PYTHONPATH'] = project_home
 
-```bash
-cd ~
-git clone https://github.com/your-username/mutebot.git
-```
+        # 导入 Flask 应用
+        try:
+            from web_service import app as application
+            print("Successfully imported Flask application from web_service") # Optional: for debugging
+        except Exception as e:
+            # Log the error for debugging in the WSGI error log
+            print(f"Error importing Flask application: {e}")
+            import traceback
+            traceback.print_exc()
+            raise # Re-raise the exception so PythonAnywhere logs it
+        ```
+    *   **务必** 将 `yourusername` 替换为你的 PythonAnywhere 用户名。
+    *   保存文件。
 
-4. 进入项目目录：
+## 步骤 4: 设置 Telegram Webhook
 
-```bash
-cd mutebot
-```
+1.  回到 PythonAnywhere 的 **Web** 选项卡。
+2.  点击 **Reload yourusername.pythonanywhere.com** 按钮应用 WSGI 配置并启动 Web App。
+3.  在 **Bash Console** 中 (确保 venv 已激活)，运行一次性脚本来设置 webhook (或者你可以本地运行这个 Python 片段):
+    ```python
+    import os
+    from telegram import Bot
+    from dotenv import load_dotenv
 
-## 步骤 5: 配置环境变量
+    load_dotenv() # Load .env
 
-1. 在 Dashboard 中点击 "Files" 选项卡
-2. 导航到 `/home/yourusername/mutebot/` 目录
-3. 创建一个新文件 `.env`，内容如下：
+    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 
-```
-TELEGRAM_API_ID=你的API_ID
-TELEGRAM_API_HASH=你的API_HASH
-TELEGRAM_BOT_TOKEN=你的BOT_TOKEN
-TELEGRAM_GROUP=@你的群组名
-MODE=prod
-PRD_PORT=8872
-```
+    if not TOKEN or not WEBHOOK_URL:
+        print("Error: TELEGRAM_BOT_TOKEN or WEBHOOK_URL not found in .env")
+    else:
+        hook_url = f"{WEBHOOK_URL}/{TOKEN}" # The webhook URL must match the route in web_service.py
+        bot = Bot(token=TOKEN)
+        try:
+            bot.set_webhook(url=hook_url)
+            print(f"Webhook set successfully to: {hook_url}")
+        except Exception as e:
+            print(f"Error setting webhook: {e}")
+    ```
+4.  **重要:** 确保 `hook_url` (即 `https://yourusername.pythonanywhere.com/YOUR_BOT_TOKEN`) 与 `web_service.py` 中定义的路由完全匹配。
 
-## 步骤 6: 安装依赖
+## 步骤 5: 检查日志
 
-1. 回到 Bash 控制台
-2. 创建并激活虚拟环境：
+*   **Web Server Log:** 在 PythonAnywhere Web 选项卡下，查看 "Log files" -> "Server log"。这里会显示 WSGI 服务器的启动信息和 HTTP 请求日志。
+*   **Error Log:** 查看 "Log files" -> "Error log"。这里会显示 WSGI 文件加载错误或 Flask 应用运行时错误。
+*   **Bot Log:** 查看 `/home/yourusername/mutebot/bot.log` (在 Files 选项卡或 Console 中 `cat bot.log`)。这是我们代码中配置的日志文件，记录 Bot 的运行信息。
 
-```bash
-cd ~/mutebot
-python3.11 -m venv venv
-source venv/bin/activate && python main.py
-```
+## 完成!
 
-3. 安装所需依赖：
-
-```bash
-pip install -r requirements.txt
-```
-
-## 步骤 7: 配置 WSGI 文件
-
-1. 在 Dashboard 中点击 "Web" 选项卡
-2. 点击 "WSGI configuration file" 链接编辑 WSGI 文件
-3. 替换文件内容为：
-
-```python
-import sys
-import os
-
-# 添加项目路径
-path = '/home/yourusername/mutebot'
-if path not in sys.path:
-    sys.path.append(path)
-
-# 设置环境变量
-os.environ['PYTHONPATH'] = path
-
-# 导入Flask应用
-from web_service import app as application
-```
-
-4. 保存文件
-
-## 步骤 8: 设置自动启动任务
-
-1. 在 Dashboard 中点击 "Tasks" 选项卡
-2. 在 "Schedule" 部分，添加以下命令作为定时任务：
-
-```bash
-cd ~/mutebot && source venv/bin/activate && python main.py >> bot.log 2>&1
-```
-
-3. 将任务设置为 "Daily"，选择当前时间（这样任务将立即运行，并每天在相同时间重启）
-
-## 步骤 9: 启动服务
-
-1. 在 Dashboard 中点击 "Web" 选项卡
-2. 点击 "Reload" 按钮重新加载 Web 服务
-3. 等待几分钟，让 MuteBot 服务完全启动
-
-## 步骤 10: 验证部署
-
-1. 访问您的 Web App URL (例如 `https://yourusername.pythonanywhere.com/bot`)
-2. 您应该能看到 MuteBot 的服务状态页面
-3. 在 Telegram 中，将您的机器人添加到目标群组并授予管理员权限
-4. 测试以下功能：
-   - 新用户加入时是否自动禁言
-   - 用户是否可以通过私聊发送密码解除禁言
-   - 群内是否可以使用 `/pass` 命令获取当日密码
-
-## 故障排除
-
-如果遇到问题，请检查以下内容：
-
-1. 查看日志文件：
-   ```bash
-   cd ~/mutebot
-   tail -f bot.log
-   ```
-
-2. 确保机器人有足够的权限：
-   - 在 Telegram 群组中必须拥有管理员权限
-   - 需要有禁言用户的权限
-
-3. 检查会话文件是否正确：
-   ```bash
-   ls -la ~/mutebot/*.session
-   ```
-   如果没有 `.session` 文件，可能是首次登录失败
-
-4. 重启服务：
-   - 在 PythonAnywhere Tasks 页面手动运行任务
-   - 重新加载 Web App（Web 选项卡中的 "Reload" 按钮）
+现在，你的 MuteBot 应该通过 Webhook 在 PythonAnywhere 上运行了。新消息会触发 Telegram 调用你的 Webhook URL，然后由你的 Flask 应用处理。
+你不再需要手动在 Console 中运行 `python main.py`，也不需要在 Tasks 中设置定时任务来启动它。
 
 ## 保持服务运行
 

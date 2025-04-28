@@ -1,15 +1,13 @@
 # 核心依赖
 python-dotenv>=1.0.0
-telethon>=1.32.0
-flask>=2.3.2
-tweepy>=4.14.0
-asyncio==3.4.3
-aiohttp>=3.8.4
+Flask>=2.3.2
+python-telegram-bot
 requests==2.31.0
+Pillow>=10.0.0  # 添加 PIL/Pillow 库用于图片处理
 gunicorn==21.2.0
 apscheduler==3.10.4
 nest-asyncio==1.6.0
 watchdog==3.0.0
 quart==0.19.4
 flask-cors>=4.0.0
-pillow>=10.0.0  # 添加 PIL/Pillow 库用于图片处理 
+asyncio==3.4.3 

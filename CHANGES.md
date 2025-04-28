@@ -1,5 +1,14 @@
 # CBots 变更日志
 
+## v0.8.7 (2024-07-25)
+- 迁移到 Telegram Bot API 以兼容 PythonAnywhere
+  - 创建了 `bot_api_core.py` 使用 `python-telegram-bot` 库。
+  - 修改了 `web_service.py` 以集成 `BotAPICore` 并添加 webhook 路由。
+  - 调整了 `bot_api_core.py`，移除 `start()` 方法，启动由入口控制。
+  - 修改了 `main.py`，使其仅在本地运行时启动 polling 模式用于测试。
+  - 更新了 `requirements.txt`，添加 `python-telegram-bot`，移除 `telethon` 和 `aiohttp`。
+  - 更新了 `pythonanywhere_deployment.md`，适配 webhook 部署流程。
+
 ## v0.8.6 (2024-07-24)
 - 修复了@消息处理功能
   - 添加了缺失的`is_message_to_me`函数用于检测@消息

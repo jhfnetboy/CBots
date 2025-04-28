@@ -1,148 +1,84 @@
-# PythonAnywhere兼容版web_service.py
-from flask import Flask, render_template, jsonify, request, current_app
+# PythonAnywhere Webhook compatible web_service.py
+from flask import Flask, render_template, jsonify, request, Response
 import logging
 import os
-import asyncio
-import json
 import traceback
-import time
-import threading
 from dotenv import load_dotenv
-from web_routes import web_bp, set_main_loop, get_or_create_loop
+import telegram # Import telegram library
+from bot_api_core import BotAPICore # Import our BotAPICore
 
-# 加载环境变量
+# Load environment variables
 load_dotenv()
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# 版本信息
-VERSION = "0.25.00"
+# --- Bot Initialization ---
+try:
+    bot_core = BotAPICore() # Instantiate the bot core
+    VERSION = bot_core.version # Get version from bot core
+except Exception as e:
+    logger.error(f"Failed to initialize BotAPICore: {e}")
+    logger.error(traceback.format_exc())
+    bot_core = None
+    VERSION = "Error"
+# ------------------------
 
-# 全局事件循环线程
-event_loop_thread = None
-
-# 创建Flask应用
+# Create Flask app
 app = Flask(__name__, 
            static_folder='static',
            template_folder='templates')
 
-# 配置应用
+# Configure app
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
 app.config['JSON_AS_ASCII'] = False
 
-# 根据环境变量配置端口
-MODE = os.getenv('MODE', 'prod').lower()
-if MODE == 'dev':
-    PORT = int(os.getenv('DEV_PORT', '8873'))
-    logger.info(f"运行在开发模式，使用端口: {PORT}")
-else:
-    PORT = int(os.getenv('PRD_PORT', '8872'))
-    logger.info(f"运行在生产模式，使用端口: {PORT}")
+# --- Webhook Route ---
+# This route will be called by Telegram when new updates arrive
+@app.route(f'/{bot_core.token}', methods=['POST']) # Route uses the bot token
+def webhook_handler():
+    if bot_core:
+        try:
+            update_json = request.get_json(force=True)
+            update = telegram.Update.de_json(update_json, bot_core.updater.bot)
+            # Process the update using the bot's dispatcher
+            bot_core.updater.dispatcher.process_update(update)
+            return Response(status=200) # Must return 200 OK to Telegram
+        except Exception as e:
+            logger.error(f"Error processing webhook update: {e}")
+            logger.error(traceback.format_exc())
+            return Response("Error processing update", status=500)
+    else:
+        logger.error("Bot core not initialized, cannot process webhook.")
+        return Response("Bot not initialized", status=500)
+# --------------------
 
-# 注册蓝图
-try:
-    app.register_blueprint(web_bp)
-    logger.info("Successfully registered web_bp blueprint")
-except Exception as e:
-    logger.error(f"Error registering blueprint: {e}")
-
-# 首页路由 - 简化只显示服务状态和版本
+# --- Other Routes (e.g., status page) ---
 @app.route('/')
 def index():
-    """主页路由 - 显示服务状态和版本"""
+    """Homepage route - displays bot status and version"""
     return render_template('status.html', version=VERSION)
 
-# 状态路由
 @app.route('/status')
 def status():
-    """服务状态检查"""
-    global event_loop_thread
-    
-    # 获取事件循环状态
-    loop = get_or_create_loop()
-    
+    """Service status check"""
+    bot_status = "Initialized" if bot_core else "Initialization Failed"
     return jsonify({
         "success": True,
         "version": VERSION,
-        "time": time.time(),
-        "event_loop": {
-            "exists": loop is not None,
-            "is_running": loop.is_running() if loop else False,
-            "is_closed": loop.is_closed() if loop else True,
-        },
-        "thread": {
-            "exists": event_loop_thread is not None,
-            "is_alive": event_loop_thread.is_alive() if event_loop_thread else False,
-        }
+        "bot_status": bot_status
     })
+# ------------------------------------
 
-# 发送消息API - 使用web_routes中新增的API端点
-@app.route('/api/send_message', methods=['POST'])
-def send_message():
-    """发送消息API - 重定向到web_routes中的实现"""
-    return web_bp.send_message()
-
-# 错误处理
+# --- Error Handling ---
 @app.errorhandler(500)
 def server_error(e):
     logger.error(f"Server error: {e}")
+    logger.error(traceback.format_exc())
     return jsonify({"error": "Internal server error", "details": str(e)}), 500
+# ---------------------
 
-def run_event_loop():
-    """在独立线程中运行事件循环"""
-    try:
-        logger.info("开始初始化事件循环线程...")
-        
-        # 创建新的事件循环
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        logger.info(f"已创建新的事件循环: {loop}")
-        
-        # 设置为全局事件循环
-        set_main_loop(loop)
-        
-        # 运行事件循环直到停止
-        logger.info("启动事件循环...")
-        loop.run_forever()
-        
-        # 清理工作
-        logger.info("事件循环已停止，进行清理...")
-        pending = asyncio.all_tasks(loop)
-        if pending:
-            logger.info(f"取消 {len(pending)} 个待处理任务")
-            for task in pending:
-                task.cancel()
-            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-        
-        loop.close()
-        logger.info("事件循环已关闭")
-    
-    except Exception as e:
-        logger.error(f"事件循环线程出错: {e}")
-        logger.error(traceback.format_exc())
-
-# 应用初始化
-if __name__ == '__main__':
-    try:
-        logger.info(f"启动服务，版本: {VERSION}")
-        
-        # 创建并启动事件循环线程
-        event_loop_thread = threading.Thread(target=run_event_loop, daemon=True, name="EventLoopThread")
-        event_loop_thread.start()
-        logger.info(f"事件循环线程已启动: {event_loop_thread.name}")
-        
-        # 等待事件循环初始化
-        time.sleep(1)
-        
-        # 启动Flask应用
-        logger.info(f"启动Web服务在端口: {PORT}...")
-        app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
-    
-    except KeyboardInterrupt:
-        logger.info("接收到中断信号，正在关闭...")
-    
-    except Exception as e:
-        logger.error(f"启动服务时发生错误: {e}")
-        logger.error(traceback.format_exc()) 
+# Note: Removed the if __name__ == '__main__': block.
+# The Flask app will be run by the WSGI server (e.g., on PythonAnywhere). 
