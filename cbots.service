@@ -1,0 +1,16 @@
+[Unit]
+Description=CBots Telegram Bot Service
+After=network.target
+
+[Service]
+Type=simple
+User=nicolasshuaishuai
+WorkingDirectory=/Users/nicolasshuaishuai/dev/tools/jhfnetboy-CBots
+ExecStart=/usr/bin/python3 /Users/nicolasshuaishuai/dev/tools/jhfnetboy-CBots/main.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/Users/nicolasshuaishuai/dev/tools/jhfnetboy-CBots/bot.log
+StandardError=append:/Users/nicolasshuaishuai/dev/tools/jhfnetboy-CBots/bot.error.log
+
+[Install]
+WantedBy=multi-user.target 

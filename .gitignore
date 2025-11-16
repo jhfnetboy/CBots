@@ -11,6 +11,7 @@ tmp/*.*
 .netlify
 .netlify/*
 bot_session.session
+sessions/*
 path/*
 path/to/env/*
 path/to/env/*.*
@@ -192,3 +193,9 @@ bot_session.session
 .netlify
 bot.session
 bot.session-journal
+
+cbots.pid
+
+bot.pid
+web.pid
+

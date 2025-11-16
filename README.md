@@ -1,6 +1,42 @@
 # CBots
 a bot for community operation and social media.
 COS72系统下的bot 模块。
+## V0.23 release
+### Unti-spam-bot:Mute new user automatically
++ Until new user send daily password to bot privately.
+Bot say hi to new user with daily password.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301914599.png)
+New use was muted when enter group.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913867.png)
+Send daily password to bot privately.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913115.png)
+Then you can speak.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913367.png)
+Auto mute new user multiple times.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301915772.png)
+
+### Command self-define
+Support multi command with convinience.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301923445.png)
+Call bot in any channel with /command.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301923978.png)
+We will add more features based on command, like query balance, get token price and etc.
+We will add **AI agents** later~!
+
+### Web page interface
+You can send direct message to bot by web page interface.
+We have a schedule to send message to telegram channel or your twitter account.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301926329.png)
+We also add Twitter bot.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301926127.png)
+You can send words with picture.
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913031.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913464.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913816.png)
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913161.png)
+Our bot logs:
+![](https://raw.githubusercontent.com/jhfnetboy/MarkDownImg/main/img/202503301913150.png)
+
 ## V0.22 release
 ### Features
 这是一个Python开发的机器人，目标是作为社区运营的Social media bot,提升运营效率。
@@ -225,15 +261,22 @@ app.py 现在专注于：
 更容易测试和扩展
 
 
-## 部署
+## 部署deploy
 
 # 创建 Python 3.12 虚拟环境
+
+
+python3 -m venv path/to/venv
+source path/to/venv/bin/activate
+python3 -m pip install xyz
+
 uv python install 3.12
 uv venv --python 3.12
 source .venv/bin/activate
 
 # 安装依赖
 pip install -r requirements.txt
+mkdir -p sessions
 
 # 1. 安装 Netlify CLI
 npm install -g netlify-cli
@@ -326,15 +369,408 @@ Available commands:
 
 每次中文沟通
 每次不要扩散修改范围，只针对问题
-每次都不要擅自优化和扩张功能范围
-每次修改后请运行app.py
-每次更新，记得更新version，例如0.23.0 -——-》 0.23.1，递增0.1
+每次都禁止擅自优化和扩张功能范围
+每次修改后请运行pthon main.py
+每次更新，记得更新version，例如0.23.21 -——-》 0.23.22，递增0.01
 每次记得输出更改了那几个文件，会可能影响那些功能
-测试禁言功能用username=nicolasshuaishuai
+每次对CHANGES.log进行追加，追加的内容是每次修改的总结内容
+
 
 频道输入的处理方式：
 从 Account_Abstraction_Community/2817 格式中提取社区名称和话题 ID
-使用社区名称获取社区实体
+使用社区名称获取社区实体d
 使用 reply_to 参数指定话题 ID
 更新了日志信息，使其更清晰
 修改了定时消息的发送方式，确保也发送到正确的话题
+
+### 代码重构
+现在我已经完成了代码重构，让我解释一下主要的变更：
+核心功能 (telegram_core.py):
+实现了 Telegram 机器人的核心功能
+处理新用户加入群组后的永久禁言
+实现每日密码生成和验证
+提供消息发送功能
+API 服务 (telegram_api.py):
+提供本地 API 接口
+只允许本地访问（127.0.0.1）
+提供消息发送和状态查询接口
+与核心服务集成
+Web 服务 (web_service.py):
+提供 Web 界面
+通过本地 API 与核心服务通信
+保持原有的页面交互界面和流程
+主程序 (main.py):
+启动所有服务
+使用多线程运行 API 和 Web 服务
+保持核心服务在主线程运行
+主要改进：
+代码结构更清晰，职责分明
+核心功能与界面分离
+API 只允许本地访问，提高安全性
+新用户永久禁言功能已实现
+每日密码验证功能已实现
+使用方法：
+确保环境变量已设置（TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_BOT_TOKEN 等）
+运行 python main.py 启动所有服务
+Web 界面将在 http://localhost:8080 可用
+API 服务将在 http://localhost:5000 可用（仅本地访问）
+需要注意的是：
+API 服务只允许本地访问，外部请求会被拒绝
+Web 服务通过本地 API 与核心服务通信
+新用户加入群组后会被永久禁言，直到发送正确的每日密码
+每日密码每小时更新一次
+是否需要我详细解释某个部分的实现？
+
+### 0.23.1
+第一，重构代码，核心功能后台运行，对外提供api，目前api只允许同一个服务器ip（或者本地调用）调用，不允许外部或者远程
+第二，独立拆分出来flask的web service功能，调用的功能使用第一提供的api，页面交互界面和流程不变。
+第三，根据之前测试文件test_mute.py，完成新测试：新用户加入群组之后自动禁言到永远，只有发送每日密码给bot之后才能解禁，这个不在api提供范围内，直接在代码中实现。
+
+at bot 的消息都要回复：Hi，dear username，I got your message：原消息信息
+增加/version命令：返回当前版本号
+每次更新都要递增：当前版本0.23.1，下一个版本0.23.2
+
+## 系统架构
+
+```mermaid
+graph TD
+    A[main.py] --> B[TelegramCore]
+    A --> C[MessageHandlers]
+    B --> D[Telethon Client]
+    C --> E[事件处理]
+    E --> F[新成员处理]
+    E --> G[命令处理]
+    E --> H[私聊处理]
+    E --> I[@bot消息处理]
+    B --> J[定时任务]
+    J --> K[3小时消息]
+    J --> L[每日密码]
+    B --> M[API接口]
+    M --> N[消息发送]
+    M --> O[状态查询]
+```
+
+## 核心功能
+
+1. 自动启动
+   - 系统启动时自动运行
+   - 崩溃时自动重启
+   - 定时任务管理
+
+2. 消息处理
+   - 新成员自动禁言
+   - 私聊密码验证
+   - 命令响应
+   - @bot消息处理
+
+3. 定时任务
+   - 每3小时发送随机消息
+   - 每日更新密码
+   - 定时状态检查
+
+4. API接口
+   - 消息发送
+   - 状态查询
+   - 配置管理
+
+Mac install service
+
+# 复制服务文件
+sudo cp com.cbots.service.plist /Library/LaunchAgents/
+
+# 加载服务
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+
+Linux install service功能
+
+# 复制服务文件
+sudo cp cbots.service /etc/systemd/system/
+
+# 重新加载 systemd
+sudo systemctl daemon-reload
+
+# 启用服务
+sudo systemctl enable cbots
+
+# 启动服务
+sudo systemctl start cbots
+
+## 异步架构选型
+# 示例：使用 asyncio 的异步架构
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+class AsyncService:
+    def __init__(self):
+        self.loop = asyncio.get_event_loop()
+        self.executor = ThreadPoolExecutor(max_workers=4)
+        
+    async def run(self):
+        # 主事件循环
+        while True:
+            await asyncio.sleep(1)
+            
+    def run_blocking(self):
+        # 阻塞任务在单独的线程池中运行
+        return self.loop.run_in_executor(self.executor, self.blocking_task)
+
+# 示例：使用 Celery 的分布式架构
+from celery import Celery
+
+app = Celery('tasks', broker='redis://localhost:6379/0')
+
+@app.task
+def send_message(message):
+    # 异步任务处理
+    pass        
+
+
+# 示例：使用 FastAPI 的异步 Web 架构
+from fastapi import FastAPI
+from fastapi.background import BackgroundTasks
+
+app = FastAPI()
+
+@app.post("/send_message")
+async def send_message(message: str, background_tasks: BackgroundTasks):
+    background_tasks.add_task(process_message, message)
+    return {"status": "accepted"}
+
+# 示例：使用 APScheduler 的定时任务架构
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+scheduler = AsyncIOScheduler()
+
+@scheduler.scheduled_job(CronTrigger(hour='*/3'))
+async def scheduled_task():
+    # 每3小时执行的任务
+    pass    
+
+### 定时发送功能整理
+1. 提供页面定时发送功能
+2. 包括telegram和twitter    
+3. 以页面所在服务器的时区为基准，用户选择时间后自动计算间隔时间，点击发送后页面提示：已安排定时发送，预计天，小时，分钟后发送，如果发送成功，请返回成功（twitter返回url）
+
+4. 消息发送功能添加图片功能，包括tele和twitter
+
+### 版本号
+增加版本号显示，在终端用绿色字体；每次修改代码，都要改动版本号：0.23.11--》0.23.12
+
+## Managing the Service on macOS
+
+After loading the service using `launchctl load /Library/LaunchAgents/com.cbots.service.plist`, you can check the service status and logs with the following commands:
+
+### Checking Service Status
+
+```bash
+# Check if the service is running
+launchctl list | grep cbots
+
+# Get detailed information about the service
+launchctl list com.cbots.service
+```
+
+### Viewing Service Logs
+
+The logs are typically stored in one of these locations:
+
+1. System log:
+```bash
+# View system logs (may include service logs)
+log show --predicate 'processImagePath contains "python"' --last 30m
+```
+
+2. Application logs in the service's working directory:
+```bash
+# View logs in the service's working directory
+cd ~/dev/tools/jhfnetboy-CBots  # Change to your actual project directory
+tail -f *.log
+```
+
+3. Standard output log (if redirected in the plist):
+```bash
+# Check the stdout/stderr files (if defined in the plist file)
+cat ~/Library/Logs/cbots.log
+cat ~/Library/Logs/cbots-error.log
+```
+
+### Starting, Stopping and Restarting the Service
+
+```bash
+# Stop the service
+launchctl unload /Library/LaunchAgents/com.cbots.service.plist
+
+# Start the service
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+
+# Restart the service
+launchctl unload /Library/LaunchAgents/com.cbots.service.plist
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+```
+
+### Updating and Restarting the Service on macOS
+
+When you update the code, follow these steps to apply the changes:
+
+1. First, stop the running service:
+```bash
+launchctl unload /Library/LaunchAgents/com.cbots.service.plist
+```
+
+2. Pull or update your code:
+```bash
+cd ~/dev/tools/jhfnetboy-CBots  # Change to your project directory
+git pull  # If using git
+```
+
+3. Restart the service:
+```bash
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+```
+
+4. Check if the service is running:
+```bash
+launchctl list | grep cbots
+```
+
+5. If the service doesn't restart properly, try these additional steps:
+```bash
+# Check if the process is still running
+ps aux | grep python | grep main.py
+
+# Kill any hanging process if needed
+kill -9 <process_id>
+
+# Then try loading the service again
+launchctl load /Library/LaunchAgents/com.cbots.service.plist
+```
+
+### Troubleshooting Service Startup and Port Issues
+
+If you cannot access the service at http://127.0.0.1:8872/, follow these steps to diagnose and fix the issue:
+
+1. Check if the service process is running:
+```bash
+ps aux | grep python | grep main.py
+```
+
+2. Check which processes are listening on which ports:
+```bash
+# List all listening ports
+lsof -i -P | grep LISTEN
+
+# Check specifically for port 8872
+lsof -i :8872
+```
+
+3. Verify the configuration in the service file:
+```bash
+cat /Library/LaunchAgents/com.cbots.service.plist
+```
+
+4. Common port issues and solutions:
+
+   a. If another service is using port 8872:
+   - You can modify the PORT in your .env file
+   - Stop the other service using the port
+   
+   b. If the service is not binding to all interfaces:
+   - Make sure the service is configured to listen on 0.0.0.0 not just localhost
+   
+   c. If the service is running but not accessible:
+   - Check if there's any firewall blocking the connection
+   - Try accessing with different browsers or curl command: `curl http://127.0.0.1:8872/`
+
+5. Manual startup for troubleshooting:
+```bash
+# Stop the launchd service first
+launchctl unload /Library/LaunchAgents/com.cbots.service.plist
+
+# Navigate to the project directory
+cd ~/dev/tools/jhfnetboy-CBots
+
+# Run manually to see any startup errors
+python main.py
+```
+
+This will run the service in the foreground so you can see any error messages or startup issues directly in the terminal.
+这里是对你的说明文档的优化和补充，使其更清晰易懂，并包含云服务的详细方案：
+
+---
+
+## 社区安装指南
+
+本项目是一个 **开源、免费、持续维护** 的 Telegram Bot，任何社区都可以自由安装和使用。  
+您可以选择自行部署，或使用 **AAStar 云服务** 快速启动。
+
+### 方式一：社区自运营（自行安装）
+
+如果您希望在自己的服务器上运行本 Bot，请按照以下步骤操作：
+
+#### 1. 克隆代码并安装依赖
+确保您的服务器运行的是 **macOS 或 Linux**，然后执行以下命令：
+```bash
+git clone https://github.com/your-repo/telegram-bot.git
+cd telegram-bot
+pip install -r requirements.txt
+```
+
+#### 2. 获取 Telegram Bot Token
+1. 访问 [@BotFather](https://t.me/BotFather)，创建一个新的 bot。  
+2. 复制生成的 **Bot Token**，备用。
+
+#### 3. 配置环境变量
+创建 `.env` 文件，并填入您的 Bot Token：
+```bash
+BOT_TOKEN=your-telegram-bot-token
+```
+
+#### 4. 运行 Bot
+```bash
+python bot.py
+```
+至此，您的 Bot 应该已经运行成功 🎉
+
+---
+
+### 方式二：AAStar 云服务（推荐）
+
+如果不想自己部署，可以选择 **AAStar 云服务**，我们提供 **一键部署**，让您无需配置服务器，即可快速上线。
+
+#### **云服务特点**
+- **免服务器**：无需购买和维护服务器  
+- **自动更新**：Bot 会自动获取最新版本  
+- **高可用性**：服务器 24/7 运行，不会因本地设备关机而停止  
+
+#### **使用方法**
+1. **注册 AAStar 云服务**  
+   访问 [AAStar 官方网站](https://your-cloud-service.com) 并注册账户。
+   
+2. **创建 Bot**  
+   在管理面板中输入 **Bot Token**，点击 "部署"。
+
+3. **选择支付方式**
+   - **社区积分**（适用于已有积分的社区用户）  
+   - **直接支付**（按月或按年订阅）
+
+4. **启动 Bot**  
+   部署完成后，您会收到一个 Bot 运行状态的通知，Bot 将立即上线 🎉。
+
+---
+
+## **云服务技术方案建议**
+如果您想自己搭建类似的云服务，建议采用以下架构：
+1. **服务器**：使用 supabase function
+2. **数据库**：使用 **supabase postgresql** 存储用户数据和 Bot 状态。  
+3. **后台管理面板**：开发一个 **Web Dashboard**，用户可以在上面输入 Token 并管理 Bot。  
+4. **支付系统**：支持 **社区积分** 或 **Stripe/PayPal** 进行在线支付。  
+5. **自动更新**：利用 GitHub Actions 或 CI/CD 让 Bot 代码保持最新。  
+
+### Topic link
+在telegram页面给指定topic group发送消息和定时小时，默认输入的格式是Account_Abstraction_Community/18472,会解析为1866085490/18472.
+
+现在需要兼容另外两种目标topic group的输入格式
+1. https://t.me/c/1807106448/33
+2. https://t.me/ETHPandaOrg/25
+请添加更多提示和说明，并调整代码，兼容这两种topic channel的输入格式
